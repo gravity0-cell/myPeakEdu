@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Peak Education — Admin</title>
+<!-- Firebase SDK -->
+<script type="module">
+// ═══════════════════════════════════════════════════════
+// FIREBASE CONFIG  — replace these values with yours from
+// Firebase Console → Project Settings → Your Apps → SDK
+// ═══════════════════════════════════════════════════════
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBudHZ0Qf9-t0Ij5Lqb5wj6oIjd7eHOvfw",
+  authDomain:        "peak-education-e953e.firebaseapp.com",
+  projectId:         "peak-education-e953e",
+  storageBucket:     "peak-education-e953e.firebasestorage.app",
+  messagingSenderId: "831435336057",
+  appId:             "1:831435336057:web:5466400ed12b89eaf067a8"
+};
+
+// ── 5 authorised email addresses ──────────────────────
+const ALLOWED_EMAILS = [
+  "fifth.staff@peakeducation.co.nz",
+  "info@peakeducation.co.nz",
+  "admin@peakeducation.co.nz",
+  "gravity020707@gmail.com",
+  "zhuziying0707@gmail.com"
+];
+// ──────────────────────────────────────────────────────
+
+const app  = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── Firestore helpers ──────────────────────────────────
+// Each collection is stored as a single document for simplicity
+// (works fine for ≤200 students; scales to ~1MB per collection)
+const COL = 'peak_data';
+
+async function fsGet(key) {
+  try {
+    const snap = await getDoc(doc(db, COL, key));
+    return snap.exists() ? snap.data().value : [];
+  } catch(e) {
+    console.warn('fsGet failed, using cache:', e);
+    return JSON.parse(localStorage.getItem('pk4_'+key) || '[]');
+  }
+}
+async function fsSet(key, value) {
+  try {
+    await setDoc(doc(db, COL, key), { value });
+    localStorage.setItem('pk4_'+key, JSON.stringify(value)); // keep local cache
+  } catch(e) {
+    console.warn('fsSet failed, saved locally only:', e);
+    localStorage.setItem('pk4_'+key, JSON.stringify(value));
+  }
+}
+function fsGetV(key) { return localStorage.getItem('pk4v_'+key); }
+function fsSetV(key, val) { localStorage.setItem('pk4v_'+key, val); }
+
+// Expose to global scope so existing code works unchanged
+window._FS = { fsGet, fsSet, fsGetV, fsSetV };
+
+// ── Auth state ─────────────────────────────────────────
+onAuthStateChanged(auth, user => {
+  if (user && ALLOWED_EMAILS.includes(user.email)) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display   = 'flex';
+    document.getElementById('auth-user').textContent = user.email;
+    window._authed = true;
+    // Boot app
+    if (typeof window._appBoot === 'function') window._appBoot();
+  } else {
+    if (user) { signOut(auth); }
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-shell').style.display   = 'none';
+    window._authed = false;
+  }
+});
+
+// ── Login handler ──────────────────────────────────────
+window._doLogin = async () => {
+  const email = document.getElementById('li-email').value.trim();
+  const pass  = document.getElementById('li-pass').value;
+  const err   = document.getElementById('li-err');
+  const btn   = document.getElementById('li-btn');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    if (!ALLOWED_EMAILS.includes(cred.user.email)) {
+      await signOut(auth);
+      err.textContent = 'This email is not authorised to access the system.';
+    }
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found':   'Email not found.',
+      'auth/wrong-password':   'Incorrect password.',
+      'auth/invalid-email':    'Invalid email address.',
+      'auth/too-many-requests':'Too many attempts. Please wait a moment.',
+      'auth/invalid-credential':'Incorrect email or password.'
+    };
+    err.textContent = msgs[e.code] || 'Sign-in failed: ' + e.message;
+  } finally { btn.disabled = false; btn.textContent = 'Sign In'; }
+};
+
+window._doSignOut = async () => {
+  await signOut(auth);
+  toast('Signed out');
+};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fdf8f0;--surf:#fffcf7;--surf2:#f5ede0;--surf3:#ece0cc;
+  --brd:#e0d0bc;--brd2:#c8b898;
+  --tx:#1e160a;--tx2:#5c4a30;--tx3:#9c8a68;
+  --ac:#9b1c1c;--acm:#b91c1c;--acl:#fde8e8;--acll:#fff5f5;
+  --gold:#92650a;--goldl:#fef3cd;
+  --red:#b91c1c;--redl:#fee2e2;
+  --blue:#1e40af;--bluel:#dbeafe;
+  --purple:#6d28d9;--purplel:#ede9fe;
+  --teal:#0f766e;--teall:#ccfbf1;
+  --gray:#6b7280;--grayl:#f3f4f6;
+  --r:10px;--rs:7px;
+  --sh:0 1px 3px rgba(0,0,0,.06);--shl:0 8px 28px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--tx);font-size:13.5px;line-height:1.5;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:3px}
+
+/* ── Layout ── */
+.shell{display:flex;min-height:100vh}
+.sb{width:220px;background:#4a1522;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.sb-logo{padding:18px 16px 14px;border-bottom:1px solid rgba(255,150,150,.15)}
+.sb-logo .nm{font-size:13px;font-weight:700;color:#fff}
+.sb-logo .sub{font-size:9px;color:rgba(255,200,200,.7);font-family:'JetBrains Mono',monospace;margin-top:2px;letter-spacing:.6px}
+.sb-nav{padding:8px;flex:1}
+.sb-sec{font-size:9px;font-weight:800;color:rgba(255,220,220,.6);letter-spacing:1.4px;text-transform:uppercase;padding:14px 10px 5px}
+.sbi{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;color:#ffe4e4;font-size:12.5px;font-weight:600;transition:all .15s;margin-bottom:1px;border:none;background:none;width:100%;text-align:left;font-family:'Sora',sans-serif}
+.sbi:hover{background:rgba(255,220,220,.1);color:#fff}
+.sbi.active{background:#6b1d2e;color:#fff}
+.sbi .ico{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:12px 16px;border-top:1px solid rgba(255,150,150,.12);font-size:9px;color:rgba(255,200,200,.5)}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+.topbar{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 22px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-.3px}
+.content{padding:20px 22px;flex:1}
+
+/* ── Cards ── */
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);box-shadow:var(--sh)}
+.card-hd{padding:12px 16px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-title{font-size:13px;font-weight:600}
+.card-bd{padding:14px 16px}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh)}
+.stat-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3);margin-bottom:5px}
+.stat-v{font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-1px}
+.stat-s{font-size:10.5px;color:var(--tx3);margin-top:2px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--rs);border:none;cursor:pointer;font-family:'Sora',sans-serif;font-size:12.5px;font-weight:500;transition:all .15s;white-space:nowrap}
+.btn-p{background:var(--ac);color:#fff}.btn-p:hover{background:var(--acm)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px;border-radius:5px}
+.btn-g{background:transparent;color:var(--tx2);border:1px solid var(--brd)}.btn-g:hover{background:var(--surf2)}
+.btn-red{background:var(--redl);color:var(--red);border:1px solid #fca5a5}.btn-red:hover{background:#fecaca}
+.btn-blue{background:var(--bluel);color:var(--blue);border:1px solid #93c5fd}.btn-blue:hover{background:#bfdbfe}
+.btn-ok{background:#dcfce7;color:#166534;border:1px solid #86efac}.btn-ok:hover{background:#bbf7d0}
+
+/* ── Table ── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);background:var(--surf2);border-bottom:1px solid var(--brd)}
+td{padding:9px 12px;border-bottom:1px solid var(--brd);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#fdf3e7}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.b-green{background:#dcfce7;color:#166534}
+.b-red{background:var(--redl);color:var(--red)}
+.b-gold{background:var(--goldl);color:var(--gold)}
+.b-blue{background:var(--bluel);color:var(--blue)}
+.b-purple{background:var(--purplel);color:var(--purple)}
+.b-teal{background:var(--teall);color:var(--teal)}
+.b-gray{background:var(--grayl);color:var(--gray)}
+.b-ac{background:var(--acl);color:var(--ac)}
+.tc{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.tc-gen{background:#dbeafe;color:#1e40af}
+.tc-igcse{background:var(--purplel);color:var(--purple)}
+.tc-cam{background:#d1fae5;color:#065f46}
+.tc-pri{background:#ffedd5;color:#9a3412}
+
+/* ── Modal ── */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
+.ov.open{opacity:1;pointer-events:all}
+.modal{background:var(--surf);border-radius:14px;box-shadow:var(--shl);width:560px;max-width:100%;max-height:90vh;overflow-y:auto;transform:translateY(10px);transition:transform .2s}
+.ov.open .modal{transform:translateY(0)}
+.mlg{width:680px}.msm{width:400px}
+.mhd{padding:15px 20px 12px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surf);z-index:1}
+.mtitle{font-size:14px;font-weight:600}
+.mclose{background:none;border:none;cursor:pointer;font-size:18px;color:var(--tx3);padding:3px}
+.mbd{padding:16px 20px}
+.mft{padding:11px 20px;border-top:1px solid var(--brd);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--surf)}
+
+/* ── Forms ── */
+.fg{margin-bottom:12px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+.fsec{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--brd)}
+label{display:block;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--brd);border-radius:6px;font-family:'Sora',sans-serif;font-size:13px;color:var(--tx);background:var(--surf);outline:none;transition:border .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--acm);box-shadow:0 0 0 3px rgba(185,28,28,.1)}
+textarea{resize:vertical;min-height:60px}
+
+/* ── Toolbar / Search ── */
+.tb{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.tb-r{margin-left:auto;display:flex;gap:8px}
+.srch{position:relative}.srch input{padding-left:28px;width:180px}
+.si{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:12px;pointer-events:none}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:3px;background:var(--surf2);border-radius:9px;padding:3px;width:fit-content}
+.tab{padding:5px 13px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:500;color:var(--tx2);border:none;background:none;font-family:'Sora',sans-serif;transition:all .15s}
+.tab.active{background:var(--surf);color:var(--tx);box-shadow:var(--sh)}
+
+/* ── Avatar ── */
+.av{width:28px;height:28px;border-radius:50%;background:var(--acl);color:var(--ac);font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+.av-lg{width:44px;height:44px;font-size:14px}
+
+/* ── Page show/hide ── */
+.page{display:none}.page.active{display:block}
+
+/* ── Student profile ── */
+.profile-hd{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:18px 20px;margin-bottom:16px;box-shadow:var(--sh);display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.profile-tabs{display:flex;gap:3px;background:var(--surf2);border-radius:9px;padding:3px;margin-bottom:16px;width:fit-content}
+.ptab{padding:6px 15px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--tx2);border:none;background:none;font-family:'Sora',sans-serif;transition:all .15s}
+.ptab.active{background:var(--ac);color:#fff;font-weight:600}
+
+/* ── Info grid ── */
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.ig-item{background:var(--surf2);border-radius:7px;padding:9px 12px}
+.ig-l{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:2px}
+.ig-v{font-size:13px;font-weight:500}
+
+/* ── Heard opts ── */
+.h-opts{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.h-opt{padding:4px 11px;border-radius:20px;border:1px solid var(--brd);font-size:12px;cursor:pointer;background:var(--surf);transition:all .15s}
+.h-opt.sel{background:var(--acl);border-color:var(--acm);color:var(--ac);font-weight:500}
+
+/* ── Progress bar ── */
+.prog{background:var(--surf2);border-radius:10px;height:5px;overflow:hidden;margin-top:3px}
+.prog-f{height:100%;border-radius:10px;background:var(--acm)}
+
+/* ── Pills ── */
+.pill{display:inline-flex;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;background:var(--acl);color:var(--ac);border:1px solid #fca5a5}
+.pill-none{font-size:11.5px;color:var(--tx3)}
+
+/* ── Subject history pill ── */
+.sh-pill{background:var(--surf2);border:1px solid var(--brd);border-radius:20px;padding:3px 10px;font-size:11px;display:flex;align-items:center;gap:5px}
+.sh-ct{background:var(--ac);color:#fff;border-radius:20px;padding:1px 6px;font-size:9.5px;font-weight:700;font-family:'JetBrains Mono',monospace}
+
+/* ── CRM stage ── */
+.stage-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.s-enq{background:#f59e0b}.s-wc{background:#3b82f6}.s-tr{background:var(--purple)}.s-td{background:var(--teal)}.s-en{background:#16a34a}.s-dr{background:var(--red)}.s-co{background:#9ca3af}
+
+/* ── Invoice num ── */
+.inv-num-p{background:var(--redl);color:var(--red);border:1px solid #fca5a5;font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 7px;border-radius:5px;font-weight:600}
+.inv-num-m{background:var(--surf2);color:var(--tx2);border:1px solid var(--brd);font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 7px;border-radius:5px;font-weight:600}
+
+/* ── Fee box ── */
+.fee-box{background:var(--acll);border:1px solid #fca5a5;border-radius:8px;padding:9px 13px;margin-bottom:12px;font-size:12.5px;color:var(--acm)}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--tx);color:#fff;padding:10px 16px;border-radius:8px;font-size:12.5px;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+
+/* ── Teacher card ── */
+.tc-card{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:14px 16px;display:flex;gap:12px;box-shadow:var(--sh)}
+
+/* ── SUBJ_COLORS map as CSS classes (used inline in JS) ── */
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN SCREEN ═══════════ -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--surf);border:1px solid var(--brd);border-radius:16px;box-shadow:var(--shl);width:380px;max-width:92vw;overflow:hidden">
+    <!-- Header -->
+    <div style="background:#4a1522;padding:28px 28px 22px;text-align:center">
+      <div style="font-size:28px;margin-bottom:6px">🏔</div>
+      <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:-.2px">Peak Education</div>
+      <div style="font-size:10px;color:rgba(255,200,200,.6);font-family:'JetBrains Mono',monospace;margin-top:4px;letter-spacing:.8px">ADMIN SYSTEM</div>
+    </div>
+    <!-- Form -->
+    <div style="padding:24px 28px 28px">
+      <div style="font-size:13.5px;font-weight:600;color:var(--tx);margin-bottom:18px">Sign in to continue</div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:4px">Email address</label>
+        <input id="li-email" type="email" placeholder="you@peakeducation.co.nz"
+          style="width:100%;padding:10px 12px;border:1px solid var(--brd);border-radius:7px;font-family:'Sora',sans-serif;font-size:13px;outline:none;background:var(--surf);color:var(--tx)"
+          onkeydown="if(event.key==='Enter')document.getElementById('li-pass').focus()">
+      </div>
+      <div style="margin-bottom:18px">
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:4px">Password</label>
+        <input id="li-pass" type="password" placeholder="••••••••"
+          style="width:100%;padding:10px 12px;border:1px solid var(--brd);border-radius:7px;font-family:'Sora',sans-serif;font-size:13px;outline:none;background:var(--surf);color:var(--tx)"
+          onkeydown="if(event.key==='Enter')window._doLogin()">
+      </div>
+      <div id="li-err" style="font-size:12px;color:#b91c1c;margin-bottom:12px;min-height:16px"></div>
+      <button id="li-btn" onclick="window._doLogin()"
+        style="width:100%;padding:11px;background:#4a1522;color:#fff;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='#6b1d2e'" onmouseout="this.style.background='#4a1522'">
+        Sign In
+      </button>
+      <div style="text-align:center;margin-top:16px;font-size:11.5px;color:var(--tx3)">
+        Access is restricted to authorised staff only
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ APP (hidden until auth) ═══════════ -->
+<div id="app-shell" style="display:none">
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="nm">🏔 Peak Education</div>
+    <div class="sub">ADMIN SYSTEM</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Overview</div>
+    <button class="sbi active" onclick="nav('dash')"><span class="ico">⊞</span>Dashboard</button>
+    <div class="sb-sec">People</div>
+    <button class="sbi" onclick="nav('students')"><span class="ico">👥</span>Students</button>
+    <button class="sbi" onclick="nav('teachers')"><span class="ico">🧑‍🏫</span>Teachers</button>
+    <div class="sb-sec">Academics</div>
+    <button class="sbi" onclick="nav('courses')"><span class="ico">📚</span>Courses</button>
+    <div class="sb-sec">Finance</div>
+    <button class="sbi" onclick="nav('finance')"><span class="ico">💳</span>Finance</button>
+    <div class="sb-sec">Marketing</div>
+    <button class="sbi" onclick="nav('crm')"><span class="ico">📱</span>CRM / Leads</button>
+  </nav>
+  <div class="sb-foot">Epsom, Auckland · GST 15%</div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+<div class="topbar">
+  <div class="topbar-title" id="pg-title">Dashboard</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="auth-user" style="font-size:11px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button class="btn btn-g btn-sm" onclick="exportData()">⬇ Export</button>
+    <button class="btn btn-p btn-sm" id="add-btn" style="display:none" onclick="topAdd()">+ Add New</button>
+    <button class="btn btn-g btn-sm" onclick="window._doSignOut()" title="Sign out" style="padding:5px 8px">⏻</button>
+  </div>
+</div>
+<div class="content">
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div class="page active" id="page-dash">
+  <div class="stats" id="dash-stats"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Recent Students</span><button class="btn btn-g btn-sm" onclick="nav('students')">View all →</button></div>
+      <div class="tw"><table><thead><tr><th>Student</th><th>Year / School</th><th>Courses</th><th>Balance</th></tr></thead><tbody id="dash-s-tbl"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Unpaid Invoices</span><button class="btn btn-g btn-sm" onclick="nav('finance')">View all →</button></div>
+      <div id="dash-inv-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ STUDENTS LIST ═══════════════ -->
+<div class="page" id="page-students">
+  <div class="tb">
+    <div class="srch"><span class="si">🔍</span><input id="sq" oninput="renderStudents()" placeholder="Search name…"></div>
+    <select id="sf-status" onchange="renderStudents()" style="width:120px"><option value="">All Status</option><option>Active</option><option>Inactive</option><option>Pending</option></select>
+    <select id="sf-year" onchange="renderStudents()" style="width:130px"><option value="">All Years</option><option>Year 7</option><option>Year 8</option><option>Year 9</option><option>Year 10</option><option>Year 11 (IGCSE)</option><option>Year 12 (AS)</option><option>Year 13 (A Level)</option></select>
+    <div class="tb-r"><button class="btn btn-p" onclick="openStudentModal()">+ Add Student</button></div>
+  </div>
+  <div class="card"><div class="tw">
+    <table><thead><tr><th>Student</th><th>Year / School</th><th>Contact</th><th>Parent</th><th>Source</th><th>Courses</th><th>Status</th><th></th></tr></thead>
+    <tbody id="s-tbl"></tbody></table>
+  </div></div>
+</div>
+
+<!-- ═══════════════ STUDENT PROFILE ═══════════════ -->
+<div class="page" id="page-profile">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <button class="btn btn-g btn-sm" onclick="nav('students')">← Students</button>
+    <span style="color:var(--tx3);font-size:12px" id="prof-breadcrumb"></span>
+  </div>
+  <!-- Profile header -->
+  <div class="profile-hd" id="prof-hd"></div>
+  <!-- Tabs -->
+  <div class="profile-tabs" id="prof-tabs-bar">
+    <button class="ptab active" onclick="profTab('courses',this)">Courses</button>
+    <button class="ptab" onclick="profTab('invoices',this)">Invoices</button>
+    <button class="ptab" onclick="profTab('trials',this)">Trials & Terms</button>
+    <button class="ptab" onclick="profTab('history',this)">Subject History</button>
+  </div>
+  <!-- Tab panes -->
+  <div id="prof-courses"></div>
+  <div id="prof-invoices" style="display:none"></div>
+  <div id="prof-trials" style="display:none"></div>
+  <div id="prof-history" style="display:none"></div>
+</div>
+
+<!-- ═══════════════ TEACHERS ═══════════════ -->
+<div class="page" id="page-teachers">
+  <div class="tb">
+    <div class="srch"><span class="si">🔍</span><input id="tq" oninput="renderTeachers()" placeholder="Search teachers…"></div>
+    <select id="tf-subj" onchange="renderTeachers()" style="width:150px"><option value="">All Subjects</option><option>English Language</option><option>English Literature</option><option>Mathematics</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Economics</option><option>Computer Science</option></select>
+    <div class="tb-r"><button class="btn btn-p" onclick="openTeacherModal()">+ Add Teacher</button></div>
+  </div>
+  <div id="teacher-grid"></div>
+</div>
+
+<!-- ═══════════════ COURSES ═══════════════ -->
+<div class="page" id="page-courses">
+  <div class="tb">
+    <div class="srch"><span class="si">🔍</span><input id="cq" oninput="renderCourses()" placeholder="Search courses…"></div>
+    <select id="cf-type" onchange="renderCourses()" style="width:140px"><option value="">All Types</option><option value="general">General Y7–10</option><option value="igcse">IGCSE Y11</option><option value="cambridge">Cambridge Y12–13</option><option value="private">Private</option></select>
+    <select id="cf-subj" onchange="renderCourses()" style="width:140px"><option value="">All Subjects</option><option>Mathematics</option><option>English Language</option><option>English Literature</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Economics</option><option>Computer Science</option><option>Science</option><option>Writing Skills</option><option>Reading Comprehension</option></select>
+    <div class="tb-r"><button class="btn btn-p" onclick="openCourseModal()">+ Add Course</button></div>
+  </div>
+  <div class="card"><div class="tw">
+    <table><thead><tr><th>Course</th><th>Type</th><th>Subject</th><th>Year</th><th>Teacher</th><th>Schedule</th><th>Fee/session</th><th>Enrolled</th><th>Status</th><th></th></tr></thead>
+    <tbody id="c-tbl"></tbody></table>
+  </div></div>
+</div>
+
+<!-- ═══════════════ FINANCE ═══════════════ -->
+<div class="page" id="page-finance">
+  <div class="tabs" style="margin-bottom:16px">
+    <button class="tab active" onclick="swFinTab('all',this)">All Invoices</button>
+    <button class="tab" onclick="swFinTab('group',this)">Group Courses</button>
+    <button class="tab" onclick="swFinTab('private',this)">Private</button>
+    <button class="tab" onclick="swFinTab('summary',this)">Summary</button>
+  </div>
+  <div id="fin-all">
+    <div class="tb">
+      <div class="srch"><span class="si">🔍</span><input id="iq" oninput="renderInvoices('all')" placeholder="Search…"></div>
+      <select id="if-status" onchange="renderInvoices('all')" style="width:120px"><option value="">All Status</option><option>Unpaid</option><option>Paid</option><option>Overdue</option></select>
+      <select id="if-student" onchange="renderInvoices('all')" style="width:170px"><option value="">All Students</option></select>
+      <div class="tb-r">
+        <button class="btn btn-g btn-sm" onclick="autoGenInvoices()">⚡ Auto-generate</button>
+        <button class="btn btn-p" onclick="openInvoiceModal()">+ Create Invoice</button>
+      </div>
+    </div>
+    <div class="card"><div class="tw"><table><thead><tr><th>Invoice #</th><th>Student</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="inv-tbl"></tbody></table></div></div>
+  </div>
+  <div id="fin-group" style="display:none">
+    <div class="tb"><select id="if-g-status" onchange="renderInvoices('group')" style="width:120px"><option value="">All Status</option><option>Unpaid</option><option>Paid</option><option>Overdue</option></select><div class="tb-r"><button class="btn btn-p" onclick="openInvoiceModal('group')">+ Group Invoice</button></div></div>
+    <div class="card"><div class="tw"><table><thead><tr><th>Invoice #</th><th>Student</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="inv-g-tbl"></tbody></table></div></div>
+  </div>
+  <div id="fin-private" style="display:none">
+    <div class="tb"><select id="if-p-status" onchange="renderInvoices('private')" style="width:120px"><option value="">All Status</option><option>Unpaid</option><option>Paid</option><option>Overdue</option></select><div class="tb-r"><button class="btn btn-p" onclick="openInvoiceModal('private')">+ Private Invoice</button></div></div>
+    <div class="card"><div class="tw"><table><thead><tr><th>Invoice #</th><th>Student</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="inv-p-tbl"></tbody></table></div></div>
+  </div>
+  <div id="fin-summary" style="display:none">
+    <div class="stats" id="fin-stats" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="card"><div class="card-hd"><span class="card-title">Per-student balance</span></div>
+    <div class="tw"><table><thead><tr><th>Student</th><th>Year</th><th>Invoices</th><th>Total billed</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody id="fin-sum-tbl"></tbody></table></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════ CRM / LEADS ═══════════════ -->
+<div class="page" id="page-crm">
+  <div class="tabs" style="margin-bottom:16px">
+    <button class="tab active" onclick="swCRMTab('leads',this)">All Leads</button>
+    <button class="tab" onclick="swCRMTab('pipeline',this)">Pipeline</button>
+  </div>
+  <div id="crm-leads">
+    <div class="tb">
+      <div class="srch"><span class="si">🔍</span><input id="lq" oninput="renderLeads()" placeholder="Search name…"></div>
+      <select id="lf-plat" onchange="renderLeads()" style="width:140px"><option value="">All Platforms</option><option>WeChat</option><option>Xiaohongshu</option><option>Instagram</option><option>Facebook</option><option>Referral</option><option>Walk-in</option></select>
+      <select id="lf-stage" onchange="renderLeads()" style="width:150px"><option value="">All Stages</option><option>Enquired</option><option>WeChat Added</option><option>Trial Requested</option><option>Trial Done</option><option>Enrolled</option><option>Dropped</option><option>Cold</option></select>
+      <div class="tb-r"><button class="btn btn-p" onclick="openLeadModal()">+ Add Lead</button></div>
+    </div>
+    <div id="lead-list"></div>
+  </div>
+  <div id="crm-pipeline" style="display:none">
+    <div id="pipeline-board" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- ══════════════════════════════════════
+     MODALS
+══════════════════════════════════════ -->
+
+<!-- Student Modal -->
+<div class="ov" id="m-student"><div class="modal mlg">
+  <div class="mhd"><span class="mtitle" id="ms-title">Add Student</span><button class="mclose" onclick="closeM('m-student')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="ms-id">
+    <div class="fsec">Personal</div>
+    <div class="fr"><div class="fg"><label>First Name *</label><input id="ms-first"></div><div class="fg"><label>Last Name *</label><input id="ms-last"></div></div>
+    <div class="fr3">
+      <div class="fg"><label>Date of Birth</label><input type="date" id="ms-dob"></div>
+      <div class="fg"><label>Gender</label><select id="ms-gender"><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select></div>
+      <div class="fg"><label>Status</label><select id="ms-status"><option>Active</option><option>Inactive</option><option>Pending</option></select></div>
+    </div>
+    <div class="fsec">School</div>
+    <div class="fr">
+      <div class="fg"><label>Current School *</label><input id="ms-school" placeholder="e.g. Auckland Grammar"></div>
+      <div class="fg"><label>Year Level *</label><select id="ms-year"><option value="">Select…</option><option>Year 7</option><option>Year 8</option><option>Year 9</option><option>Year 10</option><option>Year 11 (IGCSE)</option><option>Year 12 (AS)</option><option>Year 13 (A Level)</option></select></div>
+    </div>
+    <div class="fsec">Student Contact</div>
+    <div class="fr"><div class="fg"><label>Email</label><input type="email" id="ms-email"></div><div class="fg"><label>Phone</label><input id="ms-phone" placeholder="+64 21…"></div></div>
+    <div class="fsec">Parent / Guardian</div>
+    <div class="fr"><div class="fg"><label>Parent Name *</label><input id="ms-pname"></div><div class="fg"><label>Relationship</label><select id="ms-prel"><option value="">—</option><option>Father</option><option>Mother</option><option>Guardian</option><option>Other</option></select></div></div>
+    <div class="fr"><div class="fg"><label>Parent Email</label><input type="email" id="ms-pemail"></div><div class="fg"><label>Parent Phone *</label><input id="ms-pphone" placeholder="+64 21…"></div></div>
+    <div class="fsec">How Did They Find Us?</div>
+    <div class="fg">
+      <div class="h-opts" id="h-opts">
+        <span class="h-opt" onclick="togH(this,'WeChat')">WeChat</span>
+        <span class="h-opt" onclick="togH(this,'Xiaohongshu')">Xiaohongshu</span>
+        <span class="h-opt" onclick="togH(this,'Instagram')">Instagram</span>
+        <span class="h-opt" onclick="togH(this,'Facebook')">Facebook</span>
+        <span class="h-opt" onclick="togH(this,'Friend / Referral')">Friend / Referral</span>
+        <span class="h-opt" onclick="togH(this,'Google Search')">Google Search</span>
+        <span class="h-opt" onclick="togH(this,'School Flyer')">School Flyer</span>
+        <span class="h-opt" onclick="togH(this,'Walk-in')">Walk-in</span>
+        <span class="h-opt" onclick="togH(this,'Other')">Other</span>
+      </div>
+      <input id="ms-heard-other" placeholder="Other details…" style="margin-top:6px;display:none">
+    </div>
+    <div class="fg"><label>Notes</label><textarea id="ms-notes"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-student')">Cancel</button><button class="btn btn-p" onclick="saveStudent()">Save Student</button></div>
+</div></div>
+
+<!-- Enroll Modal (from profile) -->
+<div class="ov" id="m-enroll"><div class="modal">
+  <div class="mhd"><span class="mtitle">Enroll in Course</span><button class="mclose" onclick="closeM('m-enroll')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="me-sid">
+    <input type="hidden" id="me-eid">
+    <div class="fg"><label>Course *</label><select id="me-course" onchange="showEnrollFee()"><option value="">Select course…</option></select></div>
+    <div id="me-fee-box" style="display:none" class="fee-box"></div>
+    <div class="fr"><div class="fg"><label>Enrolled Date</label><input type="date" id="me-date"></div><div class="fg"><label>Status</label><select id="me-status"><option>Active</option><option>Completed</option><option>Withdrawn</option></select></div></div>
+    <div class="fg"><label>Notes</label><textarea id="me-notes"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-enroll')">Cancel</button><button class="btn btn-p" onclick="saveEnroll()">Save</button></div>
+</div></div>
+
+<!-- Invoice Modal -->
+<div class="ov" id="m-invoice"><div class="modal">
+  <div class="mhd"><span class="mtitle" id="mi-title">Create Invoice</span><button class="mclose" onclick="closeM('m-invoice')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mi-id">
+    <input type="hidden" id="mi-type">
+    <div id="mi-numpreview" style="display:none;background:var(--surf2);border:1px solid var(--brd);border-radius:6px;padding:7px 11px;margin-bottom:11px;font-size:12px">
+      Invoice # will be: <strong id="mi-numval" style="font-family:'JetBrains Mono',monospace;color:var(--ac)"></strong>
+    </div>
+    <div class="fg"><label>Student *</label>
+      <select id="mi-student" onchange="onInvStudentChange()"><option value="">Select…</option></select>
+    </div>
+    <div class="fg"><label>Course (auto-fills fee rate)</label>
+      <select id="mi-course" onchange="onInvCourseChange()"><option value="">Select course…</option></select>
+    </div>
+    <div class="fg" id="mi-private-dur-wrap" style="display:none">
+      <label>Session Duration (Private)</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px">
+        <button type="button" class="dur-btn" id="dur-1" onclick="selectPrivateDur('1')"
+          style="padding:10px 6px;border:2px solid var(--brd);border-radius:8px;background:var(--surf);cursor:pointer;font-family:'Sora',sans-serif;font-size:12.5px;font-weight:500;transition:all .15s">
+          <div style="font-size:15px;font-weight:700">1 hr</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:2px">$201.25/session</div>
+        </button>
+        <button type="button" class="dur-btn" id="dur-1.5" onclick="selectPrivateDur('1.5')"
+          style="padding:10px 6px;border:2px solid var(--brd);border-radius:8px;background:var(--surf);cursor:pointer;font-family:'Sora',sans-serif;font-size:12.5px;font-weight:500;transition:all .15s">
+          <div style="font-size:15px;font-weight:700">1.5 hr</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:2px">$301.88/session</div>
+        </button>
+        <button type="button" class="dur-btn" id="dur-2" onclick="selectPrivateDur('2')"
+          style="padding:10px 6px;border:2px solid var(--brd);border-radius:8px;background:var(--surf);cursor:pointer;font-family:'Sora',sans-serif;font-size:12.5px;font-weight:500;transition:all .15s">
+          <div style="font-size:15px;font-weight:700">2 hr</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:2px">$402.50/session</div>
+        </button>
+      </div>
+      <input type="hidden" id="mi-private-dur" value="">
+    </div>
+    <div id="mi-fee-info" style="display:none;background:var(--acll);border:1px solid #fca5a5;border-radius:7px;padding:9px 13px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--ac);margin-bottom:4px">Fee Rate</div>
+      <div id="mi-fee-rate" style="font-size:13px;color:var(--acm)"></div>
+    </div>
+    <div class="fg" id="mi-term-wrap">
+      <label>Term (group invoices)</label>
+      <select id="mi-term" onchange="updateInvPreview()">
+        <option value="1">Term 1 → INV-M1-###</option><option value="2">Term 2 → INV-M2-###</option>
+        <option value="3">Term 3 → INV-M3-###</option><option value="4">Term 4 → INV-M4-###</option>
+      </select>
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Number of Sessions *</label>
+        <input type="number" id="mi-sessions" min="1" max="99" placeholder="e.g. 6" oninput="calcMiAmount()">
+        <div id="mi-sessions-hint" style="font-size:11px;color:var(--tx3);margin-top:3px"></div>
+      </div>
+      <div class="fg">
+        <label>Total Amount (GST incl.)</label>
+        <input type="number" id="mi-amount" step="0.01" min="0" placeholder="Auto-calculated" style="background:var(--surf2)" readonly>
+      </div>
+    </div>
+    <div class="fg"><label>Description</label>
+      <input id="mi-desc" placeholder="Auto-filled, or edit manually">
+    </div>
+    <div class="fr"><div class="fg"><label>Due Date</label><input type="date" id="mi-due"></div><div class="fg"><label>Status</label><select id="mi-status"><option>Unpaid</option><option>Paid</option><option>Overdue</option></select></div></div>
+    <div class="fg"><label>Notes</label><textarea id="mi-notes"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-invoice')">Cancel</button><button class="btn btn-p" onclick="saveInvoice()">Save Invoice</button></div>
+</div></div>
+
+<!-- Trial Modal -->
+<div class="ov" id="m-trial"><div class="modal">
+  <div class="mhd"><span class="mtitle" id="mtr-title">Log Trial Session</span><button class="mclose" onclick="closeM('m-trial')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mtr-id"><input type="hidden" id="mtr-sid">
+    <div class="fg"><label>Course *</label><select id="mtr-course"><option value="">Select…</option></select></div>
+    <div class="fr"><div class="fg"><label>Trial Date</label><input type="date" id="mtr-date"></div>
+    <div class="fg"><label>Trial Fee</label><select id="mtr-fee"><option value="free">Free</option><option value="half">Half price</option><option value="full">Full price</option></select></div></div>
+    <div class="fg"><label>Outcome</label><select id="mtr-outcome" onchange="showDropReason()">
+      <option value="scheduled">Scheduled</option><option value="continued">Continued ✓</option><option value="dropped">Dropped ✗</option>
+    </select></div>
+    <div class="fg" id="mtr-drop-wrap" style="display:none">
+      <label>Reason for Dropping</label>
+      <select id="mtr-reason"><option value="">Select…</option>
+        <option>Too expensive</option><option>Schedule conflict</option><option>Not the right level</option>
+        <option>Not interested in subject</option><option>Joined another centre</option>
+        <option>School workload</option><option>Parent decision</option><option>Moved away</option><option>Other</option>
+      </select>
+    </div>
+    <div class="fg"><label>Re-invite next term?</label><select id="mtr-reinvite"><option value="yes">Yes</option><option value="maybe">Maybe</option><option value="no">No</option></select></div>
+    <div class="fg"><label>Notes</label><textarea id="mtr-notes"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-trial')">Cancel</button><button class="btn btn-p" onclick="saveTrial()">Save</button></div>
+</div></div>
+
+<!-- Term Modal -->
+<div class="ov" id="m-term"><div class="modal">
+  <div class="mhd"><span class="mtitle" id="mterm-title">New Term Enrollment</span><button class="mclose" onclick="closeM('m-term')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mterm-id"><input type="hidden" id="mterm-sid">
+    <div class="fg"><label>Course *</label><select id="mterm-course" onchange="calcTermFee()"><option value="">Select…</option></select></div>
+    <div class="fr"><div class="fg"><label>Term Name *</label><input id="mterm-name" placeholder="e.g. Term 2 2025"></div><div class="fg"><label>Sessions</label><input type="number" id="mterm-sessions" value="8" min="1" oninput="calcTermFee()"></div></div>
+    <div class="fr"><div class="fg"><label>Sessions Done</label><input type="number" id="mterm-done" value="0" min="0"></div><div class="fg"><label>Fee/Term (auto)</label><input type="number" id="mterm-fee" step="0.01" readonly style="background:var(--surf2)"></div></div>
+    <div class="fr"><div class="fg"><label>Start Date</label><input type="date" id="mterm-start"></div><div class="fg"><label>Status</label><select id="mterm-status"><option>Active</option><option>Completed</option><option>Withdrawn</option></select></div></div>
+    <div class="fg"><label>Re-invite next term?</label><select id="mterm-reinvite"><option value="yes">Yes</option><option value="no">No</option></select></div>
+    <div class="fg"><label>Notes</label><textarea id="mterm-notes"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-term')">Cancel</button><button class="btn btn-p" onclick="saveTerm()">Save</button></div>
+</div></div>
+
+<!-- Teacher Modal -->
+<div class="ov" id="m-teacher"><div class="modal mlg">
+  <div class="mhd"><span class="mtitle" id="mt-title">Add Teacher</span><button class="mclose" onclick="closeM('m-teacher')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mt-id">
+    <div class="fr"><div class="fg"><label>First Name *</label><input id="mt-first"></div><div class="fg"><label>Last Name *</label><input id="mt-last"></div></div>
+    <div class="fr"><div class="fg"><label>Email</label><input type="email" id="mt-email"></div><div class="fg"><label>Phone</label><input id="mt-phone"></div></div>
+    <div class="fr"><div class="fg"><label>Primary Subject *</label><select id="mt-subj"><option value="">Select…</option><option>English Language</option><option>English Literature</option><option>Mathematics</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Economics</option><option>Computer Science</option><option>Science</option><option>Multiple</option></select></div><div class="fg"><label>Additional Subjects</label><input id="mt-subj2" placeholder="e.g. Biology, Chemistry"></div></div>
+    <div class="fr"><div class="fg"><label>Qualifications</label><input id="mt-quals"></div><div class="fg"><label>Years Experience</label><input type="number" id="mt-exp" min="0"></div></div>
+    <div class="fg"><label>Status</label><select id="mt-status"><option>Active</option><option>Inactive</option></select></div>
+    <div class="fg"><label>Bio</label><textarea id="mt-bio" style="min-height:80px"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-teacher')">Cancel</button><button class="btn btn-p" onclick="saveTeacher()">Save Teacher</button></div>
+</div></div>
+
+<!-- Course Modal -->
+<div class="ov" id="m-course"><div class="modal mlg">
+  <div class="mhd"><span class="mtitle" id="mc-title">Add Course</span><button class="mclose" onclick="closeM('m-course')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mc-id">
+    <div class="fr"><div class="fg"><label>Course Name *</label><input id="mc-name"></div><div class="fg"><label>Course Code</label><input id="mc-code"></div></div>
+    <div class="fr3">
+      <div class="fg"><label>Type *</label><select id="mc-type" onchange="onCourseType()"><option value="">Select…</option><option value="general">General Y7–10</option><option value="igcse">IGCSE Y11</option><option value="cambridge">Cambridge Y12–13</option><option value="private">Private</option></select></div>
+      <div class="fg"><label>Subject</label><select id="mc-subj"><option value="">Select…</option><option>Mathematics</option><option>English Language</option><option>English Literature</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Economics</option><option>Computer Science</option><option>Science</option><option>Writing Skills</option><option>Reading Comprehension</option><option>Multiple</option></select></div>
+      <div class="fg"><label>Year Level</label><select id="mc-year"><option value="">—</option><option>Year 7</option><option>Year 8</option><option>Year 9</option><option>Year 10</option><option>Year 11</option><option>Year 12</option><option>Year 13</option><option>All Years</option></select></div>
+    </div>
+    <div id="mc-dur-wrap" style="display:none" class="fg"><label>Session Duration</label><select id="mc-dur" onchange="showFeePreview()"><option value="1">1 hour — $201.25</option><option value="1.5">1.5 hours — $301.88</option><option value="2">2 hours — $402.50</option></select></div>
+    <div id="mc-fee-preview" style="display:none" class="fee-box"></div>
+    <div class="fr"><div class="fg"><label>Teacher</label><select id="mc-teacher"><option value="">No teacher assigned</option></select></div><div class="fg"><label>Capacity</label><input type="number" id="mc-cap" placeholder="10" min="1"></div></div>
+    <div class="fr"><div class="fg"><label>Schedule</label><input id="mc-schedule" placeholder="e.g. Mon/Wed 4–5:30pm"></div><div class="fg"><label>Room</label><input id="mc-room"></div></div>
+    <div class="fr"><div class="fg"><label>Start Date</label><input type="date" id="mc-start"></div><div class="fg"><label>Status</label><select id="mc-status"><option>Active</option><option>Inactive</option><option>Upcoming</option></select></div></div>
+    <div class="fg"><label>Description</label><textarea id="mc-desc" style="min-height:50px"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-course')">Cancel</button><button class="btn btn-p" onclick="saveCourse()">Save Course</button></div>
+</div></div>
+
+<!-- Lead Modal -->
+<div class="ov" id="m-lead"><div class="modal mlg">
+  <div class="mhd"><span class="mtitle" id="ml-title">Add Lead</span><button class="mclose" onclick="closeM('m-lead')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="ml-id">
+    <div class="fsec">Contact</div>
+    <div class="fr"><div class="fg"><label>Parent Name *</label><input id="ml-name"></div><div class="fg"><label>Student Name</label><input id="ml-sname"></div></div>
+    <div class="fr"><div class="fg"><label>WeChat ID / Phone</label><input id="ml-wechat"></div><div class="fg"><label>Enquiry Date</label><input type="date" id="ml-date"></div></div>
+    <div class="fsec">Source & Interest</div>
+    <div class="fr">
+      <div class="fg"><label>Platform</label><select id="ml-platform"><option value="">Select…</option><option>WeChat</option><option>Xiaohongshu</option><option>Instagram</option><option>Facebook</option><option>Referral</option><option>Walk-in</option><option>Other</option></select></div>
+      <div class="fg"><label>Year Level (student)</label><select id="ml-year"><option value="">—</option><option>Year 7</option><option>Year 8</option><option>Year 9</option><option>Year 10</option><option>Year 11 (IGCSE)</option><option>Year 12 (AS)</option><option>Year 13 (A Level)</option></select></div>
+    </div>
+    <div class="fg"><label>Interested In</label><input id="ml-interest" placeholder="e.g. IGCSE Maths, Year 9 Science"></div>
+    <div class="fsec">Pipeline</div>
+    <div class="fr">
+      <div class="fg"><label>Stage</label><select id="ml-stage"><option>Enquired</option><option>WeChat Added</option><option>Trial Requested</option><option>Trial Done</option><option>Enrolled</option><option>Dropped</option><option>Cold</option></select></div>
+      <div class="fg"><label>WeChat Added?</label><select id="ml-wc-added"><option value="yes">Yes ✓</option><option value="no">No</option><option value="pending">Pending</option></select></div>
+    </div>
+    <div class="fg" id="ml-drop-wrap"><label>Drop Reason (if dropped)</label><select id="ml-drop"><option value="">—</option><option>Too expensive</option><option>Schedule conflict</option><option>Not the right level</option><option>Chose another centre</option><option>No response</option><option>Not ready</option><option>Other</option></select></div>
+    <div class="fg"><label>Linked to Student (if enrolled)</label><select id="ml-linked"><option value="">Not enrolled yet</option></select></div>
+    <div class="fg"><label>Notes / Message Summary</label><textarea id="ml-notes" style="min-height:70px" placeholder="Key points from their WeChat / DM…"></textarea></div>
+  </div>
+  <div class="mft"><button class="btn btn-g" onclick="closeM('m-lead')">Cancel</button><button class="btn btn-p" onclick="saveLead()">Save Lead</button></div>
+</div></div>
+
+<!-- Notify Modal -->
+<div class="ov" id="m-notify"><div class="modal mlg">
+  <div class="mhd">
+    <div>
+      <div class="mtitle" id="mn-title">Notify: Course Schedule Change</div>
+      <div style="font-size:11.5px;color:var(--tx3);margin-top:2px" id="mn-subtitle"></div>
+    </div>
+    <button class="mclose" onclick="closeM('m-notify')">✕</button>
+  </div>
+  <div class="mbd">
+    <!-- Schedule update fields -->
+    <div style="background:var(--surf2);border:1px solid var(--brd);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);margin-bottom:10px">Schedule Change</div>
+      <div class="fr">
+        <div class="fg"><label>Old Time</label><input id="mn-old-time" placeholder="e.g. Mon/Wed 4–5:30pm" readonly style="background:var(--surf3);color:var(--tx3)"></div>
+        <div class="fg"><label>New Time *</label><input id="mn-new-time" placeholder="e.g. Mon/Wed 5–6:30pm" oninput="buildNotifyMsg()"></div>
+      </div>
+      <div class="fg"><label>Effective From</label><input type="date" id="mn-effective" oninput="buildNotifyMsg()"></div>
+    </div>
+    <!-- Draft message -->
+    <div class="fg">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <label style="margin:0">Draft Message</label>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-g btn-xs" onclick="buildNotifyMsg()">↺ Rebuild</button>
+          <button class="btn btn-p btn-xs" onclick="copyAllEmails()">Copy all emails</button>
+          <button class="btn btn-p btn-xs" onclick="copyAllPhones()">Copy all phones</button>
+        </div>
+      </div>
+      <textarea id="mn-msg" style="min-height:120px;font-size:13px;line-height:1.6"></textarea>
+    </div>
+    <!-- Contact list -->
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);margin-bottom:8px" id="mn-contact-label"></div>
+    <div id="mn-contacts"></div>
+  </div>
+  <div class="mft">
+    <button class="btn btn-g" onclick="closeM('m-notify')">Close</button>
+    <button class="btn btn-p" onclick="saveNewSchedule()">Save New Schedule to Course</button>
+  </div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════
+// ── DB layer ─────────────────────────────────────────────────────────────
+// Reads from in-memory cache (loaded on login).  Writes go to both the
+// in-memory cache AND Firestore (async, fire-and-forget).
+// This means every read is instant (synchronous) and every write
+// syncs to the cloud automatically.  All existing DB.g / DB.s calls
+// work unchanged.
+const _cache = {};  // in-memory store, populated on login
+
+const DB = {
+  // Synchronous read from cache (always fast)
+  g: k => _cache[k] !== undefined ? _cache[k] : JSON.parse(localStorage.getItem('pk4_'+k)||'[]'),
+  // Write to cache + localStorage immediately, push to Firestore async
+  s: (k, v) => {
+    _cache[k] = v;
+    localStorage.setItem('pk4_'+k, JSON.stringify(v));
+    // Push to Firestore if authed (fire and forget)
+    if (window._authed && window._FS) {
+      window._FS.fsSet(k, v).catch(e => console.warn('Firestore write failed:', e));
+    }
+  },
+  gv: k => localStorage.getItem('pk4v_'+k),
+  sv: (k, v) => localStorage.setItem('pk4v_'+k, v)
+};
+
+// Load all collections from Firestore into cache on login
+async function loadFromFirestore() {
+  if (!window._FS) return;
+  const keys = ['students','teachers','courses','enrollments','invoices','trials','terms','leads'];
+  await Promise.all(keys.map(async k => {
+    const data = await window._FS.fsGet(k);
+    _cache[k] = data;
+    localStorage.setItem('pk4_'+k, JSON.stringify(data));
+  }));
+}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const $=id=>document.getElementById(id);
+
+// ═══════════════════════════════════════════════
+// FEE ENGINE
+// ═══════════════════════════════════════════════
+const GST=1.15;
+const GEN_HRS={'Year 7':1,'Year 8':1,'Year 9':1.5,'Year 10':1.5};
+function calcFee(type,year,duration){
+  if(type==='general'){const h=GEN_HRS[year]||1;return parseFloat((h*50*GST).toFixed(4));}
+  if(type==='igcse'||type==='cambridge')return parseFloat((1.5*70*GST).toFixed(4));
+  if(type==='private'){const d=parseFloat(duration)||1;return parseFloat((d*175*GST).toFixed(4));}
+  return 0;
+}
+function feeDesc(type,year,duration){
+  if(type==='general'){const h=GEN_HRS[year]||1;return`$50/hr × ${h}hr × GST = $${calcFee(type,year).toFixed(2)}/session`;}
+  if(type==='igcse'||type==='cambridge')return`$70/hr × 1.5hr × GST = $${calcFee(type,year).toFixed(2)}/session`;
+  if(type==='private'){const d=parseFloat(duration)||1;return`$175/hr × ${d}hr × GST = $${calcFee(type,year,d).toFixed(2)}/session`;}
+  return'';
+}
+function nextInvNum(type,term){
+  if(type==='private'){const n=parseInt(DB.gv('inv_p')||0)+1;DB.sv('inv_p',n);return'INV-P-'+String(n).padStart(3,'0');}
+  const t=parseInt(term)||1,k='inv_m'+t,n=parseInt(DB.gv(k)||0)+1;DB.sv(k,n);return`INV-M${t}-`+String(n).padStart(3,'0');
+}
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+const fmt$=n=>'$'+parseFloat(n||0).toFixed(2);
+const fmtD=d=>{if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+const inits=s=>{const p=(s||'').trim().split(' ');return((p[0]||'')[0]||'').toUpperCase()+((p[1]||'')[0]||'').toUpperCase();};
+const sName=id=>{const s=DB.g('students').find(x=>x.id===id);return s?s.first+' '+s.last:'—';};
+const cName=id=>{const c=DB.g('courses').find(x=>x.id===id);return c?c.name:'—';};
+const tName=id=>{const t=DB.g('teachers').find(x=>x.id===id);return t?t.first+' '+t.last:'—';};
+
+const SUBJ_COLORS={Mathematics:'b-blue','English Language':'b-gold','English Literature':'b-gold',Physics:'b-teal',Chemistry:'b-purple',Biology:'b-green',Economics:'b-blue','Computer Science':'b-blue',Science:'b-blue','Writing Skills':'b-gold','Reading Comprehension':'b-gold',Multiple:'b-gray'};
+
+function sBadge(s){const m={Active:'b-green',Paid:'b-green',Inactive:'b-gray',Overdue:'b-red',Unpaid:'b-gold',Pending:'b-gold',Withdrawn:'b-gray',Completed:'b-blue',Upcoming:'b-blue'};return`<span class="badge ${m[s]||'b-gray'}">${s}</span>`;}
+function yBadge(y){if(!y||y==='All Years')return'<span style="color:var(--tx3);font-size:11px">All Years</span>';const m={'Year 7':'b-blue','Year 8':'b-blue','Year 9':'b-blue','Year 10':'b-blue','Year 11 (IGCSE)':'b-purple','Year 12 (AS)':'b-teal','Year 13 (A Level)':'b-green'};return`<span class="badge ${m[y]||'b-gray'}">${y}</span>`;}
+function tChip(t){const m={general:'tc-gen',igcse:'tc-igcse',cambridge:'tc-cam',private:'tc-pri'};const l={general:'General',igcse:'IGCSE',cambridge:'Cambridge',private:'Private'};return`<span class="tc ${m[t]||''}">${l[t]||t}</span>`;}
+function invBadge(num){const p=num&&num.startsWith('INV-P');return`<span class="${p?'inv-num-p':'inv-num-m'}">${num}</span>`;}
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+function openM(id){$(id).classList.add('open');}
+function closeM(id){$(id).classList.remove('open');}
+document.querySelectorAll('.ov').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+
+// ═══════════════════════════════════════════════
+// SEED DATA
+// ═══════════════════════════════════════════════
+function seed(){
+  if(DB.g('teachers').length)return;
+  const teachers=[
+    {id:uid(),first:'Steve',last:'Walker',email:'steve.walker@peakeducation.co.nz',phone:'',subj:'English Literature',subj2:'English Language',quals:'MA English Literature, Cambridge University',exp:34,status:'Active',bio:"With over 34 years' teaching experience, Steve was Head of English at King's College for 24 years. Students have won Top of World in A Level and IGCSE English."},
+    {id:uid(),first:'Brooke',last:'Kapa',email:'brooke.kapa@peakeducation.co.nz',phone:'',subj:'English Language',subj2:'English Literature',quals:'',exp:20,status:'Active',bio:"20+ years across leading NZ schools. Former Associate Head of English at King's College, specialising in Cambridge IGCSE, AS & A Level."},
+    {id:uid(),first:'Alex',last:'Birchall',email:'alex.birchall@peakeducation.co.nz',phone:'',subj:'English Language',subj2:'English Literature',quals:'BA (Hons) First Class, Sociology',exp:6,status:'Active',bio:"Specialises in English Language and Literature in CIE and IB systems. Currently IB Extended Essay Coordinator at a top NZ high school."},
+    {id:uid(),first:'Adam',last:'Driver',email:'adam.driver@peakeducation.co.nz',phone:'',subj:'English Language',subj2:'',quals:'MEd First Class Hons, University of Auckland (Habens Prize)',exp:28,status:'Active',bio:"28 years of teaching experience in the UK and NZ. Expertise in History and English."},
+    {id:uid(),first:'Michael',last:'Riley',email:'michael.riley@peakeducation.co.nz',phone:'',subj:'Mathematics',subj2:'',quals:'BSc (Hons) Mathematics, PGCE',exp:15,status:'Active',bio:"Decided at age 14 to become a maths teacher. Holds BSc (Hons) Mathematics and PGCE."},
+    {id:uid(),first:'Logan',last:'Lee',email:'logan.lee@peakeducation.co.nz',phone:'',subj:'Mathematics',subj2:'',quals:'BSc Pure Mathematics Auckland; MEd Leadership AUT (Distinction)',exp:20,status:'Active',bio:"20 years at top Auckland schools. Head of Cambridge Mathematics."},
+    {id:uid(),first:'Jason',last:'Koh',email:'jason.koh@peakeducation.co.nz',phone:'',subj:'Mathematics',subj2:'',quals:'BSc Mathematics & Economics NUS; Dip Education; MA HRM Rutgers',exp:12,status:'Active',bio:"Born in Singapore, completed Cambridge O & A Level Maths with distinctions."},
+    {id:uid(),first:'Omar',last:'Gardner',email:'omar.gardner@peakeducation.co.nz',phone:'',subj:'Physics',subj2:'',quals:'First-Class MSci Natural Sciences (Astrophysics) UCL; MA Education Teach First',exp:15,status:'Active',bio:"15 years teaching Cambridge Physics. Former Physics teacher at Rugby School."},
+    {id:uid(),first:'Luiz',last:'Garcia',email:'luiz.garcia@peakeducation.co.nz',phone:'',subj:'Physics',subj2:'',quals:'Degree in Physics, State University of Londrina',exp:7,status:'Active',bio:"Began teaching in Brazil while working in applied nuclear physics."},
+    {id:uid(),first:'Allan',last:'Robertson',email:'allan.robertson@peakeducation.co.nz',phone:'',subj:'Chemistry',subj2:'',quals:'MSc Waikato University',exp:42,status:'Active',bio:"42 years teaching including 20 years at King's College, Auckland. Extensive CAIE Chemistry experience and former examiner."},
+    {id:uid(),first:'Allan',last:'Blackman',email:'allan.blackman@peakeducation.co.nz',phone:'',subj:'Chemistry',subj2:'',quals:"Professor; lead author 'Chemistry' (Blackman et al.)",exp:34,status:'Active',bio:"Professor, 34 years tertiary chemistry at Otago and AUT. YouTube channel: Chemistry Matters."},
+    {id:uid(),first:'Jana',last:'Errington',email:'jana.errington@peakeducation.co.nz',phone:'',subj:'Chemistry',subj2:'',quals:'Science degree (UK)',exp:15,status:'Active',bio:"Taught in UK, Czech Republic and NZ across NCEA, IB, CIE and Pearson Edexcel. Students accepted at Oxford, Cambridge, Harvard and Yale."},
+    {id:uid(),first:'Gordon',last:'Whittleston',email:'gordon.whittleston@peakeducation.co.nz',phone:'',subj:'Biology',subj2:'',quals:'BSc, PhD, QTS',exp:40,status:'Active',bio:"40+ years teaching GCSE, AS & A2 Biology. Former Chinese International School Headmaster. 30+ years as Cambridge examiner."},
+    {id:uid(),first:'Tony',last:'Kwok',email:'tony.kwok@peakeducation.co.nz',phone:'',subj:'Biology',subj2:'',quals:'BSc Microbiology, University of Auckland',exp:9,status:'Active',bio:"Teaching Biology since 2015 across IGCSE, AS, A2, and NCEA Levels 2, 3 and Scholarship."},
+    {id:uid(),first:'Jacob',last:'Samuel',email:'jacob.samuel@peakeducation.co.nz',phone:'',subj:'Economics',subj2:'Computer Science',quals:'',exp:10,status:'Active',bio:"Originally from Singapore. Has lived and worked in India, China, Dubai, and Switzerland in international school settings. Teaches Economics and Computer Science."},
+  ];
+  DB.s('teachers',teachers);
+  const T=DB.g('teachers');
+  const tId=(f,l)=>T.find(t=>t.first===f&&t.last===l)?.id||'';
+
+  const courses=[
+    {id:uid(),name:'Year 7 Science',code:'GEN-Y7-SCI',type:'general',subj:'Science',year:'Year 7',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 7',duration:'1'},
+    {id:uid(),name:'Year 7 Writing Skills',code:'GEN-Y7-WRI',type:'general',subj:'Writing Skills',year:'Year 7',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Writing Skills for Year 7',duration:'1'},
+    {id:uid(),name:'Year 8 Science',code:'GEN-Y8-SCI',type:'general',subj:'Science',year:'Year 8',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 8',duration:'1'},
+    {id:uid(),name:'Year 8 Writing Skills',code:'GEN-Y8-WRI',type:'general',subj:'Writing Skills',year:'Year 8',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Writing Skills for Year 8',duration:'1'},
+    {id:uid(),name:'Year 8 Reading Comprehension',code:'GEN-Y8-READ',type:'general',subj:'Reading Comprehension',year:'Year 8',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Reading Comprehension for Year 8',duration:'1'},
+    {id:uid(),name:'Year 9 Science',code:'GEN-Y9-SCI',type:'general',subj:'Science',year:'Year 9',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 9',duration:'1.5'},
+    {id:uid(),name:'Year 9 Reading & Writing',code:'GEN-Y9-RW',type:'general',subj:'Reading Comprehension',year:'Year 9',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Reading & Writing for Year 9',duration:'1.5'},
+    {id:uid(),name:'Year 10 Science',code:'GEN-Y10-SCI',type:'general',subj:'Science',year:'Year 10',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 10',duration:'1.5'},
+    {id:uid(),name:'Year 10 Reading & Writing',code:'GEN-Y10-RW',type:'general',subj:'Reading Comprehension',year:'Year 10',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Reading & Writing for Year 10',duration:'1.5'},
+    {id:uid(),name:'IGCSE Mathematics',code:'IGCSE-Y11-MATH',type:'igcse',subj:'Mathematics',year:'Year 11',teacherId:tId('Logan','Lee'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Mathematics',duration:'1.5'},
+    {id:uid(),name:'IGCSE English Language',code:'IGCSE-Y11-ENG-L',type:'igcse',subj:'English Language',year:'Year 11',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE English Language',duration:'1.5'},
+    {id:uid(),name:'IGCSE English Literature',code:'IGCSE-Y11-ENG-LIT',type:'igcse',subj:'English Literature',year:'Year 11',teacherId:tId('Brooke','Kapa'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE English Literature',duration:'1.5'},
+    {id:uid(),name:'IGCSE Physics',code:'IGCSE-Y11-PHY',type:'igcse',subj:'Physics',year:'Year 11',teacherId:tId('Omar','Gardner'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Physics',duration:'1.5'},
+    {id:uid(),name:'IGCSE Chemistry',code:'IGCSE-Y11-CHEM',type:'igcse',subj:'Chemistry',year:'Year 11',teacherId:tId('Allan','Robertson'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Chemistry',duration:'1.5'},
+    {id:uid(),name:'IGCSE Biology',code:'IGCSE-Y11-BIO',type:'igcse',subj:'Biology',year:'Year 11',teacherId:tId('Tony','Kwok'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Biology',duration:'1.5'},
+    {id:uid(),name:'IGCSE Economics',code:'IGCSE-Y11-ECON',type:'igcse',subj:'Economics',year:'Year 11',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Economics',duration:'1.5'},
+    {id:uid(),name:'AS Level Mathematics',code:'AS-Y12-MATH',type:'cambridge',subj:'Mathematics',year:'Year 12',teacherId:tId('Logan','Lee'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Mathematics',duration:'1.5'},
+    {id:uid(),name:'AS Level English Language',code:'AS-Y12-ENG-L',type:'cambridge',subj:'English Language',year:'Year 12',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level English Language',duration:'1.5'},
+    {id:uid(),name:'AS Level English Literature',code:'AS-Y12-ENG-LIT',type:'cambridge',subj:'English Literature',year:'Year 12',teacherId:tId('Brooke','Kapa'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level English Literature',duration:'1.5'},
+    {id:uid(),name:'AS Level Physics',code:'AS-Y12-PHY',type:'cambridge',subj:'Physics',year:'Year 12',teacherId:tId('Omar','Gardner'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Physics',duration:'1.5'},
+    {id:uid(),name:'AS Level Chemistry',code:'AS-Y12-CHEM',type:'cambridge',subj:'Chemistry',year:'Year 12',teacherId:tId('Allan','Robertson'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Chemistry',duration:'1.5'},
+    {id:uid(),name:'AS Level Biology',code:'AS-Y12-BIO',type:'cambridge',subj:'Biology',year:'Year 12',teacherId:tId('Gordon','Whittleston'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Biology',duration:'1.5'},
+    {id:uid(),name:'AS Level Economics',code:'AS-Y12-ECON',type:'cambridge',subj:'Economics',year:'Year 12',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Economics',duration:'1.5'},
+    {id:uid(),name:'AS Level Computer Science',code:'AS-Y12-CS',type:'cambridge',subj:'Computer Science',year:'Year 12',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Computer Science',duration:'1.5'},
+    {id:uid(),name:'A Level Mathematics',code:'AL-Y13-MATH',type:'cambridge',subj:'Mathematics',year:'Year 13',teacherId:tId('Logan','Lee'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Mathematics',duration:'1.5'},
+    {id:uid(),name:'A Level English Language',code:'AL-Y13-ENG-L',type:'cambridge',subj:'English Language',year:'Year 13',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level English Language',duration:'1.5'},
+    {id:uid(),name:'A Level Physics',code:'AL-Y13-PHY',type:'cambridge',subj:'Physics',year:'Year 13',teacherId:tId('Omar','Gardner'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Physics',duration:'1.5'},
+    {id:uid(),name:'A Level Chemistry',code:'AL-Y13-CHEM',type:'cambridge',subj:'Chemistry',year:'Year 13',teacherId:tId('Allan','Blackman'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Chemistry',duration:'1.5'},
+    {id:uid(),name:'A Level Biology',code:'AL-Y13-BIO',type:'cambridge',subj:'Biology',year:'Year 13',teacherId:tId('Gordon','Whittleston'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Biology',duration:'1.5'},
+    {id:uid(),name:'Private Tuition 1hr',code:'PRI-1H',type:'private',subj:'Multiple',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'One-on-one tutoring – 1 hour',duration:'1'},
+    {id:uid(),name:'Private Tuition 1.5hr',code:'PRI-1.5H',type:'private',subj:'Multiple',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'One-on-one tutoring – 1.5 hours',duration:'1.5'},
+    {id:uid(),name:'Private Tuition 2hr',code:'PRI-2H',type:'private',subj:'Multiple',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'One-on-one tutoring – 2 hours',duration:'2'},
+  ];
+  DB.s('courses',courses);
+
+  const students=[
+    {id:uid(),first:'Alice',last:'Wong',dob:'2012-03-15',gender:'Female',status:'Active',school:'Auckland Grammar School',year:'Year 9',email:'alice.wong@email.com',phone:'+64 21 200 0001',pname:'Michael Wong',prel:'Father',pemail:'m.wong@email.com',pphone:'+64 21 200 0010',heard:'WeChat',heardOther:'',notes:'',created:'2025-01-10'},
+    {id:uid(),first:'Ben',last:'Chen',dob:'2010-07-22',gender:'Male',status:'Active',school:'Westlake Boys High School',year:'Year 12 (AS)',email:'ben.chen@email.com',phone:'+64 22 300 0002',pname:'Linda Chen',prel:'Mother',pemail:'l.chen@email.com',pphone:'+64 22 300 0020',heard:'Friend / Referral',heardOther:'',notes:'Targeting Cambridge AS Maths A*',created:'2025-01-12'},
+    {id:uid(),first:'Clara',last:'Park',dob:'2011-05-10',gender:'Female',status:'Active',school:'Rangitoto College',year:'Year 10',email:'',phone:'',pname:'Jun Park',prel:'Father',pemail:'j.park@email.com',pphone:'+64 21 400 0030',heard:'Google Search',heardOther:'',notes:'',created:'2025-02-01'},
+  ];
+  DB.s('students',students);
+
+  const S=DB.g('students'),C=DB.g('courses');
+  const fC=code=>C.find(c=>c.code===code)?.id||'';
+  DB.s('enrollments',[
+    {id:uid(),studentId:S[0].id,courseId:fC('GEN-Y9-SCI'),date:'2025-01-10',status:'Active',notes:''},
+    {id:uid(),studentId:S[0].id,courseId:fC('GEN-Y9-RW'),date:'2025-01-10',status:'Active',notes:''},
+    {id:uid(),studentId:S[1].id,courseId:fC('AS-Y12-MATH'),date:'2025-01-12',status:'Active',notes:''},
+    {id:uid(),studentId:S[2].id,courseId:fC('GEN-Y10-SCI'),date:'2025-02-01',status:'Active',notes:''},
+  ]);
+  DB.s('invoices',[
+    {id:uid(),num:'INV-M1-001',studentId:S[0].id,desc:'Year 9 Science – Term 1 (6 sessions)',amount:(calcFee('general','Year 9')*6).toFixed(2),due:'2025-02-10',status:'Paid',paidDate:'2025-02-08',notes:'',created:'2025-01-10'},
+    {id:uid(),num:'INV-M1-002',studentId:S[1].id,desc:'AS Mathematics – Term 1 (6 sessions)',amount:(calcFee('cambridge','Year 12')*6).toFixed(2),due:'2025-02-10',status:'Unpaid',paidDate:'',notes:'',created:'2025-01-12'},
+    {id:uid(),num:'INV-M1-003',studentId:S[2].id,desc:'Year 10 Science – Term 1 (4 sessions)',amount:(calcFee('general','Year 10')*4).toFixed(2),due:'2025-01-25',status:'Overdue',paidDate:'',notes:'',created:'2025-02-01'},
+  ]);
+  DB.sv('inv_m1',3);
+  DB.s('trials',[]);
+  DB.s('terms',[]);
+  DB.s('leads',[]);
+}
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+let curPage='dash';
+const PAGE_TITLES={dash:'Dashboard',students:'Students',profile:'Student Profile',teachers:'Teachers',courses:'Courses',finance:'Finance',crm:'CRM / Leads'};
+const PAGES_WITH_ADD=['students','teachers','courses','finance','crm'];
+
+function nav(pg){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sbi').forEach(b=>b.classList.remove('active'));
+  $('page-'+pg)?.classList.add('active');
+  document.querySelectorAll('.sbi').forEach(b=>{
+    const t=b.textContent.trim().toLowerCase();
+    const match=pg==='dash'?t.includes('dashboard'):pg==='students'?t.includes('student'):pg==='teachers'?t.includes('teacher'):pg==='courses'?t.includes('course'):pg==='finance'?t.includes('finance'):pg==='crm'?t.includes('crm'):false;
+    if(match)b.classList.add('active');
+  });
+  $('pg-title').textContent=PAGE_TITLES[pg]||pg;
+  curPage=pg;
+  $('add-btn').style.display=PAGES_WITH_ADD.includes(pg)?'inline-flex':'none';
+  if(pg==='dash')renderDash();
+  if(pg==='students')renderStudents();
+  if(pg==='teachers')renderTeachers();
+  if(pg==='courses')renderCourses();
+  if(pg==='finance')renderInvoices('all');
+  if(pg==='crm')renderLeads();
+}
+
+function topAdd(){
+  if(curPage==='students')openStudentModal();
+  else if(curPage==='teachers')openTeacherModal();
+  else if(curPage==='courses')openCourseModal();
+  else if(curPage==='finance')openInvoiceModal();
+  else if(curPage==='crm')openLeadModal();
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════
+function renderDash(){
+  const students=DB.g('students'),courses=DB.g('courses'),enrolls=DB.g('enrollments'),invoices=DB.g('invoices');
+  const paid=invoices.filter(i=>i.status==='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const out=invoices.filter(i=>i.status!=='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  $('dash-stats').innerHTML=`
+    <div class="stat"><div class="stat-l">Students</div><div class="stat-v">${students.length}</div><div class="stat-s">${students.filter(s=>s.status==='Active').length} active</div></div>
+    <div class="stat"><div class="stat-l">Teachers</div><div class="stat-v">${DB.g('teachers').length}</div><div class="stat-s">on team</div></div>
+    <div class="stat"><div class="stat-l">Courses</div><div class="stat-v">${courses.length}</div><div class="stat-s">${courses.filter(c=>c.status==='Active').length} active</div></div>
+    <div class="stat"><div class="stat-l">Enrollments</div><div class="stat-v">${enrolls.length}</div><div class="stat-s">${enrolls.filter(e=>e.status==='Active').length} active</div></div>
+    <div class="stat"><div class="stat-l">Outstanding</div><div class="stat-v" style="font-size:18px;color:var(--red)">${fmt$(out)}</div><div class="stat-s" style="color:var(--teal)">${fmt$(paid)} collected</div></div>`;
+  const enrMap={};enrolls.forEach(e=>{if(!enrMap[e.studentId])enrMap[e.studentId]=[];enrMap[e.studentId].push(cName(e.courseId));});
+  const invMap={};invoices.forEach(i=>{if(!invMap[i.studentId])invMap[i.studentId]=0;if(i.status!=='Paid')invMap[i.studentId]+=parseFloat(i.amount||0);});
+  $('dash-s-tbl').innerHTML=[...students].reverse().slice(0,6).map(s=>`
+    <tr style="cursor:pointer" onclick="openProfile('${s.id}')">
+      <td><div style="display:flex;align-items:center;gap:7px"><div class="av">${inits(s.first+' '+s.last)}</div><div><div style="font-weight:500">${s.first} ${s.last}</div><div style="font-size:10.5px;color:var(--tx3)">${s.email||''}</div></div></div></td>
+      <td>${yBadge(s.year)}<div style="font-size:10.5px;color:var(--tx3);margin-top:2px">${s.school||''}</div></td>
+      <td style="font-size:12px;color:var(--tx2)">${(enrMap[s.id]||[]).join(', ')||'<span style="color:var(--tx3)">None</span>'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:${invMap[s.id]>0?'var(--red)':'var(--tx3)'};font-weight:600">${invMap[s.id]>0?fmt$(invMap[s.id]):'—'}</td>
+    </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">No students</td></tr>';
+  const pending=invoices.filter(i=>i.status!=='Paid').sort((a,b)=>a.due.localeCompare(b.due)).slice(0,6);
+  $('dash-inv-list').innerHTML=pending.length?pending.map(inv=>`
+    <div style="padding:9px 14px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="openProfile('${inv.studentId}')">
+      <div><div style="font-size:12.5px;font-weight:500">${sName(inv.studentId)}</div><div style="font-size:10.5px;color:var(--tx3)">${inv.num} · Due ${fmtD(inv.due)}</div></div>
+      <div style="display:flex;align-items:center;gap:7px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">${fmt$(inv.amount)}</span>${sBadge(inv.status)}</div>
+    </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--tx3);font-size:12.5px">No pending invoices 🎉</div>';
+}
+
+// ═══════════════════════════════════════════════
+// STUDENTS LIST
+// ═══════════════════════════════════════════════
+function renderStudents(){
+  const q=($('sq')?.value||'').toLowerCase(),fs=$('sf-status')?.value||'',fy=$('sf-year')?.value||'';
+  let list=DB.g('students');
+  if(q)list=list.filter(s=>(s.first+' '+s.last+s.email+s.school).toLowerCase().includes(q));
+  if(fs)list=list.filter(s=>s.status===fs);
+  if(fy)list=list.filter(s=>s.year===fy);
+  const enrolls=DB.g('enrollments');
+  $('s-tbl').innerHTML=list.length?list.map(s=>{
+    const me=enrolls.filter(e=>e.studentId===s.id&&e.status==='Active');
+    return`<tr style="cursor:pointer" onclick="openProfile('${s.id}')">
+      <td><div style="display:flex;align-items:center;gap:7px"><div class="av">${inits(s.first+' '+s.last)}</div><div style="font-weight:500">${s.first} ${s.last}</div></div></td>
+      <td>${yBadge(s.year)}<div style="font-size:10.5px;color:var(--tx3);margin-top:2px">${s.school||'—'}</div></td>
+      <td>
+        <div style="font-size:12.5px;font-weight:500">${s.phone||'<span style="color:var(--tx3)">—</span>'}</div>
+        <div style="font-size:11px;color:var(--tx3)">${s.email||'<span style="color:var(--tx3)">No student email</span>'}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;font-size:12.5px">${s.pname||'—'} <span style="color:var(--tx3);font-weight:400;font-size:11px">${s.prel?'('+s.prel+')':''}</span></div>
+        <div style="font-size:11px;color:var(--tx3)">${s.pphone||''}</div>
+        <div style="font-size:11px;color:var(--tx3)">${s.pemail||''}</div>
+      </td>
+      <td style="font-size:12px;color:var(--tx2)">${s.heard||'—'}</td>
+      <td style="font-size:12px">${me.length?me.map(e=>`<span class="pill">${cName(e.courseId)}</span>`).join(' '):'<span class="pill-none">Not enrolled</span>'}</td>
+      <td>${sBadge(s.status)}</td>
+      <td onclick="event.stopPropagation()"><div style="display:flex;gap:4px">
+        <button class="btn btn-blue btn-xs" onclick="openStudentModal('${s.id}')">Edit</button>
+        <button class="btn btn-red btn-xs" onclick="delStudent('${s.id}')">Del</button>
+      </div></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--tx3)">No students found</td></tr>';
+}
+
+// ═══════════════════════════════════════════════
+// STUDENT PROFILE  (the hub)
+// ═══════════════════════════════════════════════
+let profSid=null, profTab_='courses';
+
+function openProfile(sid){
+  profSid=sid;profTab_='courses';
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  $('prof-tabs-bar').querySelectorAll('.ptab')[0].classList.add('active');
+  renderProfileHeader();
+  renderProfCourses();
+  $('prof-invoices').style.display='none';$('prof-trials').style.display='none';$('prof-history').style.display='none';
+  $('prof-courses').style.display='block';
+  $('page-profile').classList.remove('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $('page-profile').classList.add('active');
+  document.querySelectorAll('.sbi').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.sbi:nth-of-type(2)')?.classList.add('active');
+  $('pg-title').textContent='Student Profile';
+  curPage='profile';
+  $('add-btn').style.display='none';
+}
+
+function renderProfileHeader(){
+  const s=DB.g('students').find(x=>x.id===profSid);if(!s)return;
+  $('prof-breadcrumb').textContent=s.first+' '+s.last;
+  const invoices=DB.g('invoices').filter(i=>i.studentId===profSid);
+  const out=invoices.filter(i=>i.status!=='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const paid=invoices.filter(i=>i.status==='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  $('prof-hd').innerHTML=`
+    <div style="display:flex;align-items:flex-start;gap:14px;flex:1">
+      <div class="av av-lg">${inits(s.first+' '+s.last)}</div>
+      <div>
+        <div style="font-size:17px;font-weight:700;letter-spacing:-.3px">${s.first} ${s.last}</div>
+        <div style="display:flex;gap:7px;margin-top:5px;flex-wrap:wrap;align-items:center">
+          ${yBadge(s.year)}<span style="font-size:12px;color:var(--tx2)">${s.school||'—'}</span>${sBadge(s.status)}
+        </div>
+        <div class="ig" style="margin-top:10px;grid-template-columns:repeat(4,1fr)">
+          <div class="ig-item"><div class="ig-l">Parent</div><div class="ig-v">${s.pname||'—'} ${s.prel?'('+s.prel+')':''}</div></div>
+          <div class="ig-item"><div class="ig-l">Parent Phone</div><div class="ig-v">${s.pphone||'—'}</div></div>
+          <div class="ig-item"><div class="ig-l">Student Phone</div><div class="ig-v">${s.phone||'—'}</div></div>
+          <div class="ig-item"><div class="ig-l">How found us</div><div class="ig-v">${s.heard||'—'}</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0">
+      <div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${out>0?'var(--red)':'var(--teal)'}">${fmt$(out)}</div><div style="font-size:11px;color:var(--tx3)">outstanding</div></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--tx3)">${fmt$(paid)} paid</div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button class="btn btn-g btn-sm" onclick="openStudentModal('${profSid}')">Edit Profile</button>
+        <button class="btn btn-p btn-sm" onclick="openEnrollModal('${profSid}')">+ Enroll</button>
+        <button class="btn btn-g btn-sm" onclick="openInvoiceModal('','${profSid}')">+ Invoice</button>
+      </div>
+    </div>`;
+}
+
+function profTab(tab,el){
+  profTab_=tab;
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  $('prof-courses').style.display=tab==='courses'?'block':'none';
+  $('prof-invoices').style.display=tab==='invoices'?'block':'none';
+  $('prof-trials').style.display=tab==='trials'?'block':'none';
+  $('prof-history').style.display=tab==='history'?'block':'none';
+  if(tab==='courses')renderProfCourses();
+  if(tab==='invoices')renderProfInvoices();
+  if(tab==='trials')renderProfTrials();
+  if(tab==='history')renderProfHistory();
+}
+
+// Profile → Courses tab
+function renderProfCourses(){
+  const enrolls=DB.g('enrollments').filter(e=>e.studentId===profSid);
+  const courses=DB.g('courses');
+  const active=enrolls.filter(e=>e.status==='Active');
+  const past=enrolls.filter(e=>e.status!=='Active');
+  let html=`<div class="card" style="margin-bottom:14px"><div class="card-hd">
+    <span class="card-title">Active Courses (${active.length})</span>
+    <button class="btn btn-p btn-sm" onclick="openEnrollModal('${profSid}')">+ Enroll in Course</button>
+  </div><div class="tw"><table><thead><tr><th>Course</th><th>Type</th><th>Subject</th><th>Teacher</th><th>Schedule</th><th>Fee/session</th><th>Since</th><th></th></tr></thead><tbody>`;
+  if(active.length){
+    html+=active.map(e=>{
+      const c=courses.find(x=>x.id===e.courseId);
+      const fee=c?calcFee(c.type,c.year,c.duration):0;
+      return`<tr><td style="font-weight:500">${cName(e.courseId)}</td><td>${c?tChip(c.type):''}</td><td>${c?`<span class="badge ${SUBJ_COLORS[c.subj]||'b-gray'}" style="font-size:9.5px">${c.subj}</span>`:''}</td><td style="font-size:12px">${tName(c?.teacherId)}</td><td style="font-size:12px;color:var(--tx2)">${c?.schedule||'—'}</td><td style="font-family:'JetBrains Mono',monospace;font-size:12px">${fee?fmt$(fee):'-'}</td><td style="font-size:12px;color:var(--tx3)">${fmtD(e.date)}</td><td><div style="display:flex;gap:4px"><button class="btn btn-blue btn-xs" onclick="editEnroll('${e.id}')">Edit</button><button class="btn btn-red btn-xs" onclick="removeEnroll('${e.id}')">Remove</button></div></td></tr>`;
+    }).join('');
+  } else {
+    html+=`<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--tx3)">Not enrolled in any courses yet. <button class="btn btn-p btn-xs" onclick="openEnrollModal('${profSid}')">Enroll now</button></td></tr>`;
+  }
+  html+=`</tbody></table></div></div>`;
+  if(past.length){
+    html+=`<div class="card"><div class="card-hd"><span class="card-title">Past Enrollments (${past.length})</span></div><div class="tw"><table><thead><tr><th>Course</th><th>Status</th><th>Date</th></tr></thead><tbody>`;
+    html+=past.map(e=>`<tr><td style="font-size:12.5px">${cName(e.courseId)}</td><td>${sBadge(e.status)}</td><td style="font-size:12px;color:var(--tx3)">${fmtD(e.date)}</td></tr>`).join('');
+    html+=`</tbody></table></div></div>`;
+  }
+  $('prof-courses').innerHTML=html;
+}
+
+// Profile → Invoices tab
+function renderProfInvoices(){
+  const invoices=DB.g('invoices').filter(i=>i.studentId===profSid);
+  const total=invoices.reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const paid=invoices.filter(i=>i.status==='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const out=total-paid;
+  $('prof-invoices').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+      <div class="stat"><div class="stat-l">Total billed</div><div class="stat-v" style="font-size:18px">${fmt$(total)}</div></div>
+      <div class="stat"><div class="stat-l">Paid</div><div class="stat-v" style="font-size:18px;color:var(--teal)">${fmt$(paid)}</div></div>
+      <div class="stat"><div class="stat-l">Outstanding</div><div class="stat-v" style="font-size:18px;color:var(--red)">${fmt$(out)}</div></div>
+    </div>
+    <div class="card"><div class="card-hd"><span class="card-title">Invoices</span>
+      <button class="btn btn-p btn-sm" onclick="openInvoiceModal('','${profSid}')">+ Create Invoice</button>
+    </div><div class="tw"><table><thead><tr><th>Invoice #</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
+    ${invoices.length?invoices.sort((a,b)=>b.created?.localeCompare(a.created||'')||0).map(inv=>`<tr>
+      <td>${invBadge(inv.num)}</td>
+      <td style="font-size:12.5px">${inv.desc}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:700">${fmt$(inv.amount)}</td>
+      <td>${fmtD(inv.due)}</td>
+      <td>${sBadge(inv.status)}</td>
+      <td><div style="display:flex;gap:4px">
+        ${inv.status!=='Paid'?`<button class="btn btn-ok btn-xs" onclick="markPaid('${inv.id}')">✓ Paid</button>`:''}
+        <button class="btn btn-blue btn-xs" onclick="editInvoice('${inv.id}')">Edit</button>
+        <button class="btn btn-red btn-xs" onclick="delInvoice('${inv.id}')">Del</button>
+      </div></td>
+    </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx3)">No invoices yet</td></tr>'}
+    </tbody></table></div></div>`;
+}
+
+// Profile → Trials & Terms tab
+function renderProfTrials(){
+  const trials=DB.g('trials').filter(t=>t.studentId===profSid);
+  const terms=DB.g('terms').filter(t=>t.studentId===profSid);
+  const om={scheduled:'b-gold',continued:'b-green',dropped:'b-red'};
+  let html=`<div class="card" style="margin-bottom:14px"><div class="card-hd">
+    <span class="card-title">Trial Sessions (${trials.length})</span>
+    <button class="btn btn-p btn-sm" onclick="openTrialModal('${profSid}')">+ Log Trial</button>
+  </div>`;
+  if(trials.length){
+    html+=`<div class="tw"><table><thead><tr><th>Course</th><th>Date</th><th>Fee</th><th>Outcome</th><th>Drop Reason</th><th>Re-invite?</th><th></th></tr></thead><tbody>`;
+    html+=trials.map(t=>`<tr><td style="font-weight:500;font-size:12.5px">${cName(t.courseId)}</td><td>${fmtD(t.date)}</td><td style="font-size:12px;color:var(--tx2)">${{free:'Free',half:'Half price',full:'Full price'}[t.feeType]||'—'}</td><td><span class="badge ${om[t.outcome]||'b-gray'}">${t.outcome||'—'}</span></td><td style="font-size:12px;color:var(--tx2)">${t.outcome==='dropped'?(t.reason||'—'):'—'}</td><td>${t.reinvite==='yes'?'<span class="badge b-green">Yes</span>':t.reinvite==='maybe'?'<span class="badge b-gold">Maybe</span>':'<span class="badge b-gray">No</span>'}</td><td><div style="display:flex;gap:4px"><button class="btn btn-blue btn-xs" onclick="editTrial('${t.id}')">Edit</button><button class="btn btn-red btn-xs" onclick="delTrial('${t.id}')">Del</button></div></td></tr>`).join('');
+    html+=`</tbody></table></div>`;
+  } else {
+    html+=`<div class="card-bd" style="color:var(--tx3);font-size:12.5px">No trial sessions logged yet.</div>`;
+  }
+  html+=`</div>`;
+
+  // Terms
+  html+=`<div class="card"><div class="card-hd"><span class="card-title">Term Enrollments (${terms.length})</span><button class="btn btn-p btn-sm" onclick="openTermModal('${profSid}')">+ New Term</button></div>`;
+  if(terms.length){
+    html+=`<div class="tw"><table><thead><tr><th>Term</th><th>Course</th><th>Progress</th><th>Fee/Term</th><th>Status</th><th></th></tr></thead><tbody>`;
+    html+=terms.map(t=>{
+      const done=parseInt(t.sessionsCompleted)||0,total=parseInt(t.sessions)||8;
+      const pct=Math.min(100,Math.round(done/total*100));
+      return`<tr><td style="font-weight:500">${t.termName||'—'}</td><td style="font-size:12.5px">${cName(t.courseId)}</td><td><div style="font-size:12px">${done}/${total} sessions</div><div class="prog"><div class="prog-f" style="width:${pct}%"></div></div></td><td style="font-family:'JetBrains Mono',monospace;font-size:12px">${fmt$(t.fee)}</td><td>${sBadge(t.status)}</td><td><div style="display:flex;gap:4px"><button class="btn btn-blue btn-xs" onclick="editTerm('${t.id}')">Edit</button><button class="btn btn-red btn-xs" onclick="delTerm('${t.id}')">Del</button></div></td></tr>`;
+    }).join('');
+    html+=`</tbody></table></div>`;
+  } else {
+    html+=`<div class="card-bd" style="color:var(--tx3);font-size:12.5px">No term enrollments yet.</div>`;
+  }
+
+  // Re-invite list
+  const toReinvite=trials.filter(t=>t.outcome==='dropped'&&t.reinvite!=='no');
+  const termsToRenew=terms.filter(t=>t.status==='Completed'&&t.reinvite==='yes');
+  if(toReinvite.length||termsToRenew.length){
+    html+=`</div><div class="card" style="margin-top:14px;border-color:#fca5a5;background:var(--acll)"><div class="card-hd"><span class="card-title" style="color:var(--ac)">Re-invite for Next Term</span></div>`;
+    toReinvite.forEach(t=>{html+=`<div style="padding:10px 16px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:500;font-size:12.5px">${cName(t.courseId)}</div><div style="font-size:11px;color:var(--tx3)">Dropped after trial · ${fmtD(t.date)} · ${t.reason||'—'}</div></div><button class="btn btn-p btn-xs" onclick="openTermModal('${profSid}','${t.courseId}')">Enroll now →</button></div>`;});
+    termsToRenew.forEach(t=>{html+=`<div style="padding:10px 16px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:500;font-size:12.5px">${cName(t.courseId)}</div><div style="font-size:11px;color:var(--tx3)">Completed term · ${t.termName||''}</div></div><button class="btn btn-p btn-xs" onclick="openTermModal('${profSid}','${t.courseId}')">Re-enroll →</button></div>`;});
+  }
+  html+=`</div>`;
+  $('prof-trials').innerHTML=html;
+}
+
+// Profile → Subject History tab
+function renderProfHistory(){
+  const terms=DB.g('terms').filter(t=>t.studentId===profSid);
+  const enrolls=DB.g('enrollments').filter(e=>e.studentId===profSid&&e.status==='Active');
+  const courses=DB.g('courses');
+  const subjMap={};
+  terms.forEach(t=>{const c=courses.find(x=>x.id===t.courseId);if(!c)return;const subj=c.subj||'Other';if(!subjMap[subj])subjMap[subj]={terms:0,sessions:0,courses:[],active:0};subjMap[subj].terms++;subjMap[subj].sessions+=parseInt(t.sessions)||0;if(!subjMap[subj].courses.includes(c.name))subjMap[subj].courses.push(c.name);});
+  enrolls.forEach(e=>{const c=courses.find(x=>x.id===e.courseId);if(!c)return;const subj=c.subj||'Other';if(!subjMap[subj])subjMap[subj]={terms:0,sessions:0,courses:[],active:0};subjMap[subj].active++;if(!subjMap[subj].courses.includes(c.name))subjMap[subj].courses.push(c.name);});
+  const entries=Object.entries(subjMap);
+  $('prof-history').innerHTML=`
+    <div class="card"><div class="card-hd"><span class="card-title">Subject History</span></div>
+    <div class="card-bd">
+    ${entries.length?`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      ${entries.map(([subj,d])=>`<div class="sh-pill">
+        <span class="badge ${SUBJ_COLORS[subj]||'b-gray'}" style="font-size:9px">${subj}</span>
+        <span class="sh-ct">${d.terms}</span>
+        <span style="font-size:11px;color:var(--tx2)">term${d.terms!==1?'s':''} · ${d.sessions} sessions</span>
+        ${d.active?`<span style="font-size:10px;color:var(--teal);font-weight:600">${d.active} active</span>`:''}
+      </div>`).join('')}
+    </div>
+    <div class="tw"><table><thead><tr><th>Subject</th><th>Terms Completed</th><th>Total Sessions</th><th>Active Now</th><th>Courses Taken</th></tr></thead><tbody>
+    ${entries.map(([subj,d])=>`<tr><td><span class="badge ${SUBJ_COLORS[subj]||'b-gray'}">${subj}</span></td><td style="font-family:'JetBrains Mono',monospace;font-weight:600">${d.terms}</td><td style="font-family:'JetBrains Mono',monospace">${d.sessions}</td><td>${d.active?`<span class="badge b-teal">${d.active} active</span>`:'<span style="color:var(--tx3)">—</span>'}</td><td style="font-size:12px;color:var(--tx2)">${d.courses.join(', ')}</td></tr>`).join('')}
+    </tbody></table></div>`
+    :'<div style="text-align:center;padding:24px;color:var(--tx3)">No subject history yet. Add term enrollments to start tracking.</div>'}
+    </div></div>`;
+}
+
+// ═══════════════════════════════════════════════
+// STUDENT CRUD
+// ═══════════════════════════════════════════════
+let heardSel=[];
+function togH(el,v){if(el.classList.contains('sel')){el.classList.remove('sel');heardSel=heardSel.filter(x=>x!==v);}else{el.classList.add('sel');heardSel.push(v);}$('ms-heard-other').style.display=heardSel.includes('Other')?'block':'none';}
+
+function openStudentModal(id){
+  $('ms-title').textContent=id?'Edit Student':'Add Student';
+  heardSel=[];document.querySelectorAll('.h-opt').forEach(el=>el.classList.remove('sel'));$('ms-heard-other').style.display='none';
+  ['ms-id','ms-first','ms-last','ms-dob','ms-email','ms-phone','ms-school','ms-pname','ms-pemail','ms-pphone','ms-notes','ms-heard-other'].forEach(f=>$(f).value='');
+  $('ms-status').value='Active';$('ms-gender').value='';$('ms-year').value='';$('ms-prel').value='';
+  if(id){const s=DB.g('students').find(x=>x.id===id);if(s){$('ms-id').value=s.id;$('ms-first').value=s.first;$('ms-last').value=s.last;$('ms-dob').value=s.dob||'';$('ms-gender').value=s.gender||'';$('ms-status').value=s.status;$('ms-school').value=s.school||'';$('ms-year').value=s.year||'';$('ms-email').value=s.email||'';$('ms-phone').value=s.phone||'';$('ms-pname').value=s.pname||'';$('ms-prel').value=s.prel||'';$('ms-pemail').value=s.pemail||'';$('ms-pphone').value=s.pphone||'';$('ms-notes').value=s.notes||'';heardSel=(s.heard||'').split(',').map(v=>v.trim()).filter(Boolean);document.querySelectorAll('.h-opt').forEach(el=>{if(heardSel.includes(el.textContent.trim()))el.classList.add('sel');});$('ms-heard-other').style.display=heardSel.includes('Other')?'block':'none';$('ms-heard-other').value=s.heardOther||'';}}
+  openM('m-student');
+}
+function saveStudent(){
+  const first=$('ms-first').value.trim(),last=$('ms-last').value.trim();
+  if(!first||!last){toast('First and last name required');return;}
+  const students=DB.g('students'),sid=$('ms-id').value;
+  const obj={id:sid||uid(),first,last,dob:$('ms-dob').value,gender:$('ms-gender').value,status:$('ms-status').value,school:$('ms-school').value,year:$('ms-year').value,email:$('ms-email').value,phone:$('ms-phone').value,pname:$('ms-pname').value,prel:$('ms-prel').value,pemail:$('ms-pemail').value,pphone:$('ms-pphone').value,heard:heardSel.join(', '),heardOther:$('ms-heard-other').value,notes:$('ms-notes').value,created:sid?(students.find(x=>x.id===sid)?.created||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10)};
+  if(sid){const i=students.findIndex(x=>x.id===sid);students[i]=obj;}else students.push(obj);
+  DB.s('students',students);closeM('m-student');
+  if(curPage==='students')renderStudents();
+  if(curPage==='profile'){renderProfileHeader();}
+  toast(sid?'Student updated ✓':'Student added ✓');
+}
+function delStudent(id){
+  if(!confirm('Delete this student and all their data?'))return;
+  DB.s('students',DB.g('students').filter(s=>s.id!==id));
+  DB.s('enrollments',DB.g('enrollments').filter(e=>e.studentId!==id));
+  DB.s('invoices',DB.g('invoices').filter(i=>i.studentId!==id));
+  DB.s('trials',DB.g('trials').filter(t=>t.studentId!==id));
+  DB.s('terms',DB.g('terms').filter(t=>t.studentId!==id));
+  renderStudents();toast('Student deleted');
+}
+
+// ═══════════════════════════════════════════════
+// ENROLLMENT (from profile)
+// ═══════════════════════════════════════════════
+function openEnrollModal(sid,eid){
+  $('me-sid').value=sid||profSid||'';$('me-eid').value=eid||'';
+  $('me-notes').value='';$('me-date').value=new Date().toISOString().slice(0,10);$('me-status').value='Active';$('me-fee-box').style.display='none';
+  $('me-course').innerHTML='<option value="">Select course…</option>'+DB.g('courses').filter(c=>c.status==='Active').map(c=>`<option value="${c.id}">[${c.type.toUpperCase()}] ${c.name} — ${fmt$(calcFee(c.type,c.year,c.duration))}/session</option>`).join('');
+  if(eid){const e=DB.g('enrollments').find(x=>x.id===eid);if(e){$('me-course').value=e.courseId;$('me-date').value=e.date||'';$('me-status').value=e.status;$('me-notes').value=e.notes||'';showEnrollFee();}}
+  openM('m-enroll');
+}
+function editEnroll(eid){openEnrollModal(profSid,eid);}
+function showEnrollFee(){
+  const cid=$('me-course').value;if(!cid){$('me-fee-box').style.display='none';return;}
+  const c=DB.g('courses').find(x=>x.id===cid);if(!c){$('me-fee-box').style.display='none';return;}
+  $('me-fee-box').style.display='block';$('me-fee-box').textContent=`💰 ${c.name} — ${feeDesc(c.type,c.year,c.duration)}`;
+}
+
+function removeEnroll(eid){
+  if(!confirm('Remove this enrollment?'))return;
+  DB.s('enrollments',DB.g('enrollments').filter(e=>e.id!==eid));
+  renderProfCourses();renderProfileHeader();toast('Enrollment removed');
+}
+
+// ═══════════════════════════════════════════════
+// TEACHERS
+// ═══════════════════════════════════════════════
+function renderTeachers(){
+  const q=($('tq')?.value||'').toLowerCase(),fs=$('tf-subj')?.value||'';
+  let list=DB.g('teachers');
+  if(q)list=list.filter(t=>(t.first+' '+t.last+t.subj).toLowerCase().includes(q));
+  if(fs)list=list.filter(t=>(t.subj+' '+t.subj2).toLowerCase().includes(fs.toLowerCase()));
+  const courses=DB.g('courses');
+  const bgs=['#fde8e8','#ede9fe','#dbeafe','#fef3cd','#ffedd5'];
+  const fgs=['#9b1c1c','#6d28d9','#1e40af','#92650a','#9a3412'];
+  const subjGroups={};list.forEach(t=>{const k=t.subj||'Other';if(!subjGroups[k])subjGroups[k]=[];subjGroups[k].push(t);});
+  let html='';
+  for(const [subj,teachers] of Object.entries(subjGroups)){
+    html+=`<div style="margin-bottom:18px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="badge ${SUBJ_COLORS[subj]||'b-gray'}">${subj}</span><span style="font-size:11px;color:var(--tx3)">${teachers.length} teacher${teachers.length!==1?'s':''}</span></div>`;
+    html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px">`;
+    teachers.forEach(t=>{
+      const ci=Math.abs((t.first.charCodeAt(0)||0)+(t.last.charCodeAt(0)||0))%5;
+      const myCourses=courses.filter(c=>c.teacherId===t.id&&c.status==='Active');
+      html+=`<div class="tc-card">
+        <div style="width:42px;height:42px;border-radius:50%;background:${bgs[ci]};color:${fgs[ci]};font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'JetBrains Mono',monospace">${inits(t.first+' '+t.last)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div><div style="font-weight:600;font-size:13.5px">${t.first} ${t.last}</div><div style="font-size:10.5px;color:var(--tx3);margin-top:1px">${t.quals||''}</div></div>
+            <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-blue btn-xs" onclick="openTeacherModal('${t.id}')">Edit</button><button class="btn btn-red btn-xs" onclick="delTeacher('${t.id}')">Del</button></div>
+          </div>
+          ${t.bio?`<div style="font-size:11.5px;color:var(--tx2);margin:5px 0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${t.bio}</div>`:''}
+          ${t.exp?`<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">${t.exp} years experience</div>`:''}
+          ${myCourses.length?`<div style="display:flex;flex-wrap:wrap;gap:4px">${myCourses.map(c=>`<span class="pill" style="font-size:10px">${c.name}</span>`).join('')}</div>`:''}
+          <div style="display:flex;gap:4px;margin-top:6px">
+            ${t.subj?`<span class="badge ${SUBJ_COLORS[t.subj]||'b-gray'}">${t.subj}</span>`:''}
+            ${t.subj2?t.subj2.split(',').map(s=>`<span class="badge b-gray" style="font-size:9px">${s.trim()}</span>`).join(''):''}
+          </div>
+        </div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+  $('teacher-grid').innerHTML=html||'<div style="text-align:center;padding:40px;color:var(--tx3)">No teachers found</div>';
+}
+function openTeacherModal(id){
+  $('mt-title').textContent=id?'Edit Teacher':'Add Teacher';
+  ['mt-id','mt-first','mt-last','mt-email','mt-phone','mt-subj2','mt-quals','mt-exp','mt-bio'].forEach(f=>$(f).value='');
+  $('mt-subj').value='';$('mt-status').value='Active';
+  if(id){const t=DB.g('teachers').find(x=>x.id===id);if(t){$('mt-id').value=t.id;$('mt-first').value=t.first;$('mt-last').value=t.last;$('mt-email').value=t.email||'';$('mt-phone').value=t.phone||'';$('mt-subj').value=t.subj||'';$('mt-subj2').value=t.subj2||'';$('mt-quals').value=t.quals||'';$('mt-exp').value=t.exp||'';$('mt-status').value=t.status;$('mt-bio').value=t.bio||'';}}
+  openM('m-teacher');
+}
+function saveTeacher(){
+  const first=$('mt-first').value.trim(),last=$('mt-last').value.trim();
+  if(!first||!last){toast('Name required');return;}
+  const teachers=DB.g('teachers'),tid=$('mt-id').value;
+  const obj={id:tid||uid(),first,last,email:$('mt-email').value,phone:$('mt-phone').value,subj:$('mt-subj').value,subj2:$('mt-subj2').value,quals:$('mt-quals').value,exp:parseInt($('mt-exp').value)||0,status:$('mt-status').value,bio:$('mt-bio').value};
+  if(tid){const i=teachers.findIndex(x=>x.id===tid);teachers[i]=obj;}else teachers.push(obj);
+  DB.s('teachers',teachers);closeM('m-teacher');renderTeachers();toast(tid?'Updated ✓':'Teacher added ✓');
+}
+function delTeacher(id){if(!confirm('Delete teacher?'))return;DB.s('teachers',DB.g('teachers').filter(t=>t.id!==id));renderTeachers();toast('Deleted');}
+
+// ═══════════════════════════════════════════════
+// COURSES
+// ═══════════════════════════════════════════════
+function onCourseType(){
+  const t=$('mc-type').value;
+  $('mc-dur-wrap').style.display=t==='private'?'block':'none';
+  showFeePreview();
+}
+function showFeePreview(){
+  const t=$('mc-type').value,y=$('mc-year').value,d=$('mc-dur')?.value||'1';
+  if(!t){$('mc-fee-preview').style.display='none';return;}
+  const fee=calcFee(t,y,d);
+  $('mc-fee-preview').style.display=fee?'block':'none';
+  if(fee)$('mc-fee-preview').textContent='💰 '+feeDesc(t,y,d);
+}
+function renderCourses(){
+  const q=($('cq')?.value||'').toLowerCase(),ft=$('cf-type')?.value||'',fs=$('cf-subj')?.value||'';
+  let list=DB.g('courses');
+  if(q)list=list.filter(c=>(c.name+c.code).toLowerCase().includes(q));
+  if(ft)list=list.filter(c=>c.type===ft);
+  if(fs)list=list.filter(c=>c.subj===fs);
+  const enrolls=DB.g('enrollments'),students=DB.g('students');
+  $('c-tbl').innerHTML=list.length?list.map(c=>{
+    const activeE=enrolls.filter(e=>e.courseId===c.id&&e.status==='Active');
+    const fee=calcFee(c.type,c.year,c.duration);
+    const rid='cr-'+c.id;
+    const rosterRows=activeE.map(e=>{
+      const s=students.find(x=>x.id===e.studentId);if(!s)return'';
+      return`<tr style="background:#fdf3e7;border-left:3px solid var(--ac)">
+        <td colspan="2" style="padding:7px 12px 7px 24px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <div class="av" style="width:24px;height:24px;font-size:9px">${inits(s.first+' '+s.last)}</div>
+            <div style="cursor:pointer;font-weight:500;font-size:12.5px" onclick="openProfile('${s.id}')">${s.first} ${s.last}</div>
+          </div>
+          ${s.email?`<div style="font-size:11px;color:var(--tx3);margin-top:2px;padding-left:31px">${s.email}</div>`:''}
+        </td>
+        <td style="background:#fdf3e7;padding:7px 12px">${yBadge(s.year)}</td>
+        <td style="background:#fef2f2;padding:7px 12px">
+          <div style="font-size:12px;font-weight:500">${s.pname||'—'}</div>
+          <div style="font-size:11px;color:var(--tx3)">${s.pphone||''}</div>
+          ${s.pemail?`<div style="font-size:11px;color:var(--tx3)">${s.pemail}</div>`:''}
+        </td>
+        <td style="background:#fef2f2;padding:7px 12px;font-size:11.5px;color:var(--tx2)">${s.phone||'—'}</td>
+        <td style="background:#fef2f2;padding:7px 12px" colspan="3">
+          <div style="font-size:11px;color:var(--tx3)">Enrolled ${fmtD(e.date)}</div>
+        </td>
+        <td style="background:#fef2f2;padding:7px 12px">
+          <button class="btn btn-red btn-xs" onclick="qRemove('${e.id}','${c.id}')">Remove</button>
+        </td>
+      </tr>`;
+    }).join('');
+    return`<tr style="cursor:pointer" onclick="toggleCR('${c.id}')">
+      <td><div style="display:flex;align-items:center;gap:6px"><span id="arr-${c.id}" style="font-size:11px;color:var(--tx3);transition:transform .2s;display:inline-block">▶</span><div><div style="font-weight:500;font-size:13px">${c.name}</div><div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx3)">${c.code||''}</div></div></div></td>
+      <td>${tChip(c.type)}</td><td><span class="badge ${SUBJ_COLORS[c.subj]||'b-gray'}" style="font-size:9.5px">${c.subj||'—'}</span></td>
+      <td>${yBadge(c.year)}</td><td style="font-size:12px">${tName(c.teacherId)}</td>
+      <td style="font-size:11.5px;color:var(--tx2)">${c.schedule||'—'}</td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--surf2);padding:2px 7px;border-radius:5px">${fee?fmt$(fee):'—'}</span></td>
+      <td><div style="display:flex;align-items:center;gap:5px"><strong style="font-size:14px;color:${activeE.length>0?'var(--ac)':'var(--tx3)'}">${activeE.length}</strong><span style="color:var(--tx3);font-size:11px">/ ${c.cap||'∞'}</span><button class="btn btn-p btn-xs" onclick="event.stopPropagation();openEnrollFromCourse('${c.id}')">+ Add</button></div></td>
+      <td>${sBadge(c.status)}</td>
+      <td onclick="event.stopPropagation()"><div style="display:flex;gap:4px">
+        <button class="btn btn-blue btn-xs" onclick="openCourseModal('${c.id}')">Edit</button>
+        <button class="btn" style="background:#fff3e0;color:#9a3412;border:1px solid #fed7aa;font-size:11px;padding:3px 8px;border-radius:5px" onclick="openNotifyModal('${c.id}')" title="Notify enrolled students about schedule change">🔔 Notify</button>
+        <button class="btn btn-red btn-xs" onclick="delCourse('${c.id}')">Del</button>
+      </div></td>
+    </tr>
+    <tr id="${rid}" style="display:none"><td colspan="10" style="padding:0;border-bottom:none">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--surf3)">
+          <th colspan="2" style="padding:6px 12px 6px 24px;font-size:10px;color:var(--tx3)">STUDENT + EMAIL</th>
+          <th style="padding:6px 12px;font-size:10px;color:var(--tx3)">YEAR</th>
+          <th style="padding:6px 12px;font-size:10px;color:var(--tx3)">PARENT + CONTACTS</th>
+          <th style="padding:6px 12px;font-size:10px;color:var(--tx3)">STUDENT PHONE</th>
+          <th colspan="3" style="padding:6px 12px;font-size:10px;color:var(--tx3)">ENROLLED</th>
+          <th style="padding:6px 12px"></th>
+        </tr></thead>
+        <tbody>${rosterRows||`<tr style="background:#f8f4ee;border-left:3px solid var(--brd)"><td colspan="9" style="padding:12px 24px;color:var(--tx3);font-size:12.5px">No students enrolled yet. <button class="btn btn-p btn-xs" onclick="openEnrollFromCourse('${c.id}')">+ Enroll Student</button></td></tr>`}</tbody>
+      </table>
+    </td></tr>`;
+  }).join(''):'<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--tx3)">No courses found</td></tr>';
+}
+function toggleCR(cid){const r=$('cr-'+cid),a=$('arr-'+cid);if(!r)return;const open=r.style.display==='table-row';r.style.display=open?'none':'table-row';if(a)a.style.transform=open?'':'rotate(90deg)';}
+function qRemove(eid,cid){if(!confirm('Remove?'))return;DB.s('enrollments',DB.g('enrollments').filter(e=>e.id!==eid));renderCourses();const r=$('cr-'+cid),a=$('arr-'+cid);if(r){r.style.display='table-row';if(a)a.style.transform='rotate(90deg)';}toast('Removed ✓');}
+function openEnrollFromCourse(cid){
+  // Open the enroll modal with course pre-selected but let user pick student
+  $('me-sid').value='';$('me-eid').value='';
+  $('me-notes').value='';$('me-date').value=new Date().toISOString().slice(0,10);$('me-status').value='Active';$('me-fee-box').style.display='none';
+  $('me-course').innerHTML='<option value="">Select course…</option>'+DB.g('courses').filter(c=>c.status==='Active').map(c=>`<option value="${c.id}">[${c.type.toUpperCase()}] ${c.name} — ${fmt$(calcFee(c.type,c.year,c.duration))}/session</option>`).join('');
+  $('me-course').value=cid;showEnrollFee();
+  // Patch save to use selected student from a new dropdown
+  $('me-course').insertAdjacentHTML('beforebegin','<div class="fg" id="me-student-wrap"><label>Student *</label><select id="me-student-pick"><option value="">Select student…</option>'+DB.g('students').map(s=>`<option value="${s.id}">${s.first} ${s.last} (${s.year||'—'})</option>`).join('')+'</select></div>');
+  openM('m-enroll');
+}
+function saveEnroll(){
+  let sid=$('me-sid').value;
+  if(!sid)sid=$('me-student-pick')?.value||'';
+  const cid=$('me-course').value;
+  if(!sid||!cid){toast('Select student and course');return;}
+  const enrolls=DB.g('enrollments'),eid=$('me-eid').value;
+  if(!eid&&enrolls.find(e=>e.studentId===sid&&e.courseId===cid)){toast('Already enrolled');return;}
+  const obj={id:eid||uid(),studentId:sid,courseId:cid,date:$('me-date').value,status:$('me-status').value,notes:$('me-notes').value};
+  if(eid){const i=enrolls.findIndex(x=>x.id===eid);enrolls[i]=obj;}else enrolls.push(obj);
+  DB.s('enrollments',enrolls);
+  // Remove temp student picker
+  $('me-student-wrap')?.remove();
+  closeM('m-enroll');
+  if(curPage==='courses')renderCourses();
+  if(curPage==='profile'){renderProfCourses();renderProfileHeader();}
+  toast(eid?'Updated ✓':'Enrolled ✓');
+}
+function openCourseModal(id){
+  $('mc-title').textContent=id?'Edit Course':'Add Course';
+  ['mc-id','mc-name','mc-code','mc-schedule','mc-room','mc-desc'].forEach(f=>$(f).value='');
+  $('mc-type').value='';$('mc-subj').value='';$('mc-year').value='';$('mc-status').value='Active';$('mc-cap').value='';$('mc-start').value='';$('mc-dur-wrap').style.display='none';$('mc-fee-preview').style.display='none';
+  $('mc-teacher').innerHTML='<option value="">No teacher assigned</option>'+DB.g('teachers').filter(t=>t.status==='Active').map(t=>`<option value="${t.id}">${t.first} ${t.last} (${t.subj})</option>`).join('');
+  if(id){const c=DB.g('courses').find(x=>x.id===id);if(c){$('mc-id').value=c.id;$('mc-name').value=c.name;$('mc-code').value=c.code||'';$('mc-type').value=c.type||'';$('mc-subj').value=c.subj||'';$('mc-year').value=c.year||'';$('mc-status').value=c.status;$('mc-teacher').value=c.teacherId||'';$('mc-cap').value=c.cap||'';$('mc-schedule').value=c.schedule||'';$('mc-room').value=c.room||'';$('mc-start').value=c.start||'';$('mc-desc').value=c.desc||'';onCourseType();if(c.type==='private'&&$('mc-dur'))$('mc-dur').value=c.duration||'1';showFeePreview();}}
+  openM('m-course');
+}
+function saveCourse(){
+  const name=$('mc-name').value.trim(),type=$('mc-type').value;
+  if(!name||!type){toast('Name and type required');return;}
+  const yr=$('mc-year').value;
+  const dur=type==='private'?(parseFloat($('mc-dur')?.value)||1):type==='general'?(GEN_HRS[yr]||1):1.5;
+  const courses=DB.g('courses'),cid=$('mc-id').value;
+  const obj={id:cid||uid(),name,code:$('mc-code').value,type,subj:$('mc-subj').value,year:yr,teacherId:$('mc-teacher').value,cap:parseInt($('mc-cap').value)||0,schedule:$('mc-schedule').value,room:$('mc-room').value,start:$('mc-start').value,end:'',status:$('mc-status').value,desc:$('mc-desc').value,duration:String(dur)};
+  if(cid){const i=courses.findIndex(x=>x.id===cid);courses[i]=obj;}else courses.push(obj);
+  DB.s('courses',courses);closeM('m-course');renderCourses();toast(cid?'Updated ✓':'Course added ✓');
+}
+function delCourse(id){if(!confirm('Delete course?'))return;DB.s('courses',DB.g('courses').filter(c=>c.id!==id));DB.s('enrollments',DB.g('enrollments').filter(e=>e.courseId!==id));renderCourses();toast('Deleted');}
+
+// ═══════════════════════════════════════════════
+// FINANCE
+// ═══════════════════════════════════════════════
+let finTab='all';
+function swFinTab(tab,el){finTab=tab;document.querySelectorAll('#page-finance .tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');['all','group','private','summary'].forEach(t=>$('fin-'+t).style.display=t===tab?'block':'none');if(tab==='all')renderInvoices('all');else if(tab==='group')renderInvoices('group');else if(tab==='private')renderInvoices('private');else renderFinSummary();}
+
+function renderInvoices(mode){
+  const courses=DB.g('courses');
+  let list=DB.g('invoices');
+  const q=mode==='all'?($('iq')?.value||'').toLowerCase():'';
+  const fs=mode==='all'?($('if-status')?.value||''):mode==='group'?($('if-g-status')?.value||''):($('if-p-status')?.value||'');
+  const fst=mode==='all'?($('if-student')?.value||''):'';
+  if(mode==='group')list=list.filter(i=>{const c=courses.find(x=>x.id===i.courseId);return !c||c.type!=='private';});
+  if(mode==='private')list=list.filter(i=>{const c=courses.find(x=>x.id===i.courseId);return c&&c.type==='private';});
+  if(q)list=list.filter(i=>(i.num+i.desc+sName(i.studentId)).toLowerCase().includes(q));
+  if(fs)list=list.filter(i=>i.status===fs);
+  if(fst)list=list.filter(i=>i.studentId===fst);
+  if(mode==='all'){const sel=$('if-student'),cur=sel.value;sel.innerHTML='<option value="">All Students</option>'+DB.g('students').map(s=>`<option value="${s.id}"${s.id===cur?' selected':''}>${s.first} ${s.last}</option>`).join('');}
+  const tblId=mode==='all'?'inv-tbl':mode==='group'?'inv-g-tbl':'inv-p-tbl';
+  $(tblId).innerHTML=list.length?list.sort((a,b)=>b.created?.localeCompare(a.created||'')||0).map(inv=>`<tr>
+    <td>${invBadge(inv.num)}</td>
+    <td style="font-weight:500;cursor:pointer" onclick="openProfile('${inv.studentId}')">${sName(inv.studentId)}</td>
+    <td style="font-size:12px;max-width:220px">${inv.desc}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13.5px">${fmt$(inv.amount)}</td>
+    <td>${fmtD(inv.due)}</td><td>${sBadge(inv.status)}</td>
+    <td><div style="display:flex;gap:4px">${inv.status!=='Paid'?`<button class="btn btn-ok btn-xs" onclick="markPaid('${inv.id}')">✓ Paid</button>`:''}<button class="btn btn-blue btn-xs" onclick="editInvoice('${inv.id}')">Edit</button><button class="btn btn-red btn-xs" onclick="delInvoice('${inv.id}')">Del</button></div></td>
+  </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tx3)">No invoices found</td></tr>';
+}
+function renderFinSummary(){
+  const invoices=DB.g('invoices'),students=DB.g('students');
+  const total=invoices.reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const paid=invoices.filter(i=>i.status==='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const unpaid=invoices.filter(i=>i.status==='Unpaid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  const overdue=invoices.filter(i=>i.status==='Overdue').reduce((a,b)=>a+parseFloat(b.amount||0),0);
+  $('fin-stats').innerHTML=`<div class="stat"><div class="stat-l">Total Billed</div><div class="stat-v" style="font-size:18px">${fmt$(total)}</div></div><div class="stat"><div class="stat-l">Collected</div><div class="stat-v" style="font-size:18px;color:var(--teal)">${fmt$(paid)}</div></div><div class="stat"><div class="stat-l">Unpaid</div><div class="stat-v" style="font-size:18px;color:var(--gold)">${fmt$(unpaid)}</div></div><div class="stat"><div class="stat-l">Overdue</div><div class="stat-v" style="font-size:18px;color:var(--red)">${fmt$(overdue)}</div></div>`;
+  $('fin-sum-tbl').innerHTML=students.map(s=>{const si=invoices.filter(i=>i.studentId===s.id);if(!si.length)return'';const t=si.reduce((a,b)=>a+parseFloat(b.amount||0),0);const p=si.filter(i=>i.status==='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);const o=t-p;return`<tr><td style="cursor:pointer" onclick="openProfile('${s.id}')"><div style="display:flex;align-items:center;gap:7px"><div class="av">${inits(s.first+' '+s.last)}</div><span style="font-weight:500">${s.first} ${s.last}</span></div></td><td>${yBadge(s.year)}</td><td style="color:var(--tx3)">${si.length}</td><td style="font-family:'JetBrains Mono',monospace;font-weight:500">${fmt$(t)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--teal);font-weight:500">${fmt$(p)}</td><td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${o>0?'var(--red)':'var(--tx3)'}">${fmt$(o)}</td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--tx3)">No billing data</td></tr>';
+}
+function autoGenInvoices(){
+  const enrolls=DB.g('enrollments').filter(e=>e.status==='Active'),courses=DB.g('courses'),students=DB.g('students'),invoices=DB.g('invoices');
+  const month=new Date().toLocaleDateString('en-NZ',{month:'long',year:'numeric'});
+  const mo=new Date().getMonth()+1;const term=mo<=4?1:mo<=7?2:mo<=9?3:4;
+  let created=0;
+  enrolls.forEach(e=>{
+    const c=courses.find(x=>x.id===e.courseId),s=students.find(x=>x.id===e.studentId);if(!c||!s)return;
+    const fee=calcFee(c.type,c.year,c.duration);if(!fee)return;
+    const desc=`${c.name} – ${month}`;
+    if(invoices.find(i=>i.studentId===e.studentId&&i.desc===desc))return;
+    const due=new Date();due.setDate(due.getDate()+14);
+    invoices.push({id:uid(),num:nextInvNum(c.type==='private'?'private':'group',term),studentId:e.studentId,courseId:e.courseId,desc,amount:fee.toFixed(2),due:due.toISOString().slice(0,10),status:'Unpaid',paidDate:'',notes:'Auto-generated',created:new Date().toISOString().slice(0,10)});created++;
+  });
+  DB.s('invoices',invoices);renderInvoices('all');toast(created?`${created} invoice(s) generated ✓`:'Nothing new to generate');
+}
+function openInvoiceModal(typeHint,sid){
+  $('mi-title').textContent='Create Invoice';
+  ['mi-id','mi-desc','mi-notes'].forEach(f=>$(f).value='');
+  $('mi-amount').value='';$('mi-sessions').value='';$('mi-sessions-hint').textContent='';
+  $('mi-fee-info').style.display='none';$('mi-fee-rate').textContent='';
+  $('mi-private-dur-wrap').style.display='none';$('mi-private-dur').value='';
+  document.querySelectorAll('.dur-btn').forEach(b=>{b.style.border='2px solid var(--brd)';b.style.background='var(--surf)';b.style.color='var(--tx)';});
+  $('mi-due').value=new Date(Date.now()+14*86400000).toISOString().slice(0,10);
+  $('mi-status').value='Unpaid';$('mi-numpreview').style.display='none';
+  const isPrivate=typeHint==='private';
+  $('mi-type').value=isPrivate?'private':'group';
+  $('mi-term-wrap').style.display=isPrivate?'none':'block';
+  $('mi-student').innerHTML='<option value="">Select…</option>'+DB.g('students').map(s=>`<option value="${s.id}">${s.first} ${s.last} (${s.year||'—'})</option>`).join('');
+  $('mi-course').innerHTML='<option value="">Select course…</option>';
+  if(sid){
+    $('mi-student').value=sid;
+    onInvStudentChange();
+  }
+  if(!isPrivate)updateInvPreview();
+  openM('m-invoice');
+}
+
+function onInvStudentChange(){
+  const sid=$('mi-student').value;
+  const enrolls=DB.g('enrollments').filter(e=>e.studentId===sid&&e.status==='Active');
+  const courses=DB.g('courses');
+  // Show enrolled courses first (non-private), then others, then private as one entry
+  const enrolledIds=new Set(enrolls.map(e=>e.courseId));
+  const enrolled=enrolls.map(e=>courses.find(c=>c.id===e.courseId)).filter(c=>c&&c.type!=='private');
+  const others=courses.filter(c=>c.status==='Active'&&!enrolledIds.has(c.id)&&c.type!=='private');
+  let opts='<option value="">Select course…</option>';
+  if(enrolled.length){
+    opts+='<optgroup label="── Enrolled Courses ──">';
+    opts+=enrolled.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    opts+='</optgroup>';
+  }
+  if(others.length){
+    opts+='<optgroup label="── Other Courses ──">';
+    opts+=others.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    opts+='</optgroup>';
+  }
+  // Private — show as single entry; duration chosen via buttons after
+  const anyPrivate=courses.find(c=>c.type==='private'&&c.status==='Active');
+  if(anyPrivate){
+    opts+='<optgroup label="── Private Tuition ──">';
+    opts+=`<option value="${anyPrivate.id}">Private Tuition (choose duration below)</option>`;
+    opts+='</optgroup>';
+  }
+  $('mi-course').innerHTML=opts;
+  $('mi-fee-info').style.display='none';
+  $('mi-amount').value='';$('mi-sessions').value='';$('mi-desc').value='';
+}
+
+function onInvCourseChange(){
+  const cid=$('mi-course').value;
+  $('mi-fee-info').style.display='none';
+  $('mi-private-dur-wrap').style.display='none';
+  $('mi-amount').value='';
+  $('mi-sessions-hint').textContent='';
+  if(!cid) return;
+  const c=DB.g('courses').find(x=>x.id===cid);
+  if(!c) return;
+  const isPrivate=c.type==='private';
+  $('mi-type').value=isPrivate?'private':'group';
+  $('mi-term-wrap').style.display=isPrivate?'none':'block';
+  if(!isPrivate) updateInvPreview();
+
+  if(isPrivate){
+    // Show duration picker — don't show fee yet until duration selected
+    $('mi-private-dur-wrap').style.display='block';
+    $('mi-private-dur').value='';
+    // Reset all buttons
+    document.querySelectorAll('.dur-btn').forEach(b=>{
+      b.style.border='2px solid var(--brd)';
+      b.style.background='var(--surf)';
+      b.style.color='var(--tx)';
+    });
+    $('mi-fee-info').style.display='none';
+  } else {
+    // Group/general/cambridge/igcse — show fee immediately
+    const fee=calcFee(c.type,c.year,c.duration);
+    $('mi-fee-info').style.display='block';
+    $('mi-fee-rate').innerHTML=`${feeDesc(c.type,c.year,c.duration)} <span style="color:var(--tx3);font-size:11px">· enter sessions below</span>`;
+    $('mi-sessions-hint').textContent=fee?`$${fee.toFixed(2)} per session (incl. GST)`:'';
+    const sessions=parseInt($('mi-sessions').value)||0;
+    if(sessions>0){ $('mi-amount').value=(fee*sessions).toFixed(2); autoFillDesc(c,sessions); }
+  }
+}
+
+function selectPrivateDur(dur){
+  // Highlight selected button
+  document.querySelectorAll('.dur-btn').forEach(b=>{
+    b.style.border='2px solid var(--brd)';b.style.background='var(--surf)';b.style.color='var(--tx)';
+  });
+  const btn=$('dur-'+dur);
+  if(btn){btn.style.border='2px solid var(--ac)';btn.style.background='var(--acl)';btn.style.color='var(--ac)';}
+  $('mi-private-dur').value=dur;
+
+  // Find the matching private course by duration
+  const courses=DB.g('courses');
+  const privCourse=courses.find(c=>c.type==='private'&&String(c.duration)===String(dur));
+  if(privCourse){
+    $('mi-course').value=privCourse.id;
+  }
+
+  // Show fee info
+  const fee=calcFee('private','',dur);
+  $('mi-fee-info').style.display='block';
+  $('mi-fee-rate').innerHTML=`$175/hr × ${dur}hr × 1.15 GST = <strong>$${fee.toFixed(2)}/session</strong> <span style="color:var(--tx3);font-size:11px">· enter sessions below</span>`;
+  $('mi-sessions-hint').textContent=`$${fee.toFixed(2)} per session (incl. GST)`;
+
+  // Recalculate if sessions already filled
+  const sessions=parseInt($('mi-sessions').value)||0;
+  if(sessions>0){
+    $('mi-amount').value=(fee*sessions).toFixed(2);
+    const c=privCourse||{name:`Private Tuition ${dur}hr`,type:'private'};
+    autoFillDesc(c,sessions,dur);
+  }
+}
+
+function calcMiAmount(){
+  const sessions=parseInt($('mi-sessions').value)||0;
+  if(sessions<=0){$('mi-amount').value='';return;}
+  const cid=$('mi-course').value;
+  if(!cid){$('mi-amount').value='';return;}
+  const c=DB.g('courses').find(x=>x.id===cid);
+  if(!c){return;}
+  const dur=c.type==='private'?($('mi-private-dur').value||c.duration||'1'):c.duration;
+  const fee=calcFee(c.type,c.year,dur);
+  $('mi-amount').value=(fee*sessions).toFixed(2);
+  autoFillDesc(c,sessions,dur);
+}
+
+function autoFillDesc(c,sessions,dur){
+  const term=$('mi-term').value||'1';
+  const isPrivate=c.type==='private';
+  const durLabel=dur?` (${dur}hr)`:'';
+  const desc=isPrivate
+    ?`Private Tuition${durLabel} – ${sessions} session${sessions!==1?'s':''}`
+    :`${c.name} – Term ${term} (${sessions} session${sessions!==1?'s':''})`;
+  $('mi-desc').value=desc;
+}
+
+function updateInvPreview(){
+  const t=$('mi-type').value,term=$('mi-term').value;
+  if(t==='private'){const n=parseInt(DB.gv('inv_p')||0)+1;$('mi-numval').textContent='INV-P-'+String(n).padStart(3,'0');}
+  else{const tv=parseInt(term)||1;const n=parseInt(DB.gv('inv_m'+tv)||0)+1;$('mi-numval').textContent=`INV-M${tv}-`+String(n).padStart(3,'0');}
+  $('mi-numpreview').style.display='block';
+  // Re-run desc if course is selected
+  const cid=$('mi-course').value;
+  const sessions=parseInt($('mi-sessions').value)||0;
+  if(cid&&sessions>0){const c=DB.g('courses').find(x=>x.id===cid);if(c)autoFillDesc(c,sessions);}
+}
+function editInvoice(id){
+  const inv=DB.g('invoices').find(x=>x.id===id);if(!inv)return;
+  const isP=inv.num&&inv.num.startsWith('INV-P');
+  openInvoiceModal(isP?'private':'group',inv.studentId);
+  $('mi-title').textContent='Edit Invoice';
+  $('mi-id').value=inv.id;
+  $('mi-student').value=inv.studentId;
+  // Restore course selection if stored
+  if(inv.courseId){
+    onInvStudentChange();
+    $('mi-course').value=inv.courseId;
+    onInvCourseChange();
+  }
+  // Restore sessions from stored value if available
+  if(inv.sessions){$('mi-sessions').value=inv.sessions;}
+  $('mi-desc').value=inv.desc;
+  // Amount is readonly but we need to allow editing existing invoices
+  $('mi-amount').removeAttribute('readonly');
+  $('mi-amount').value=inv.amount;
+  $('mi-due').value=inv.due||'';$('mi-status').value=inv.status;$('mi-notes').value=inv.notes||'';
+  if(!isP&&inv.num){const m=inv.num.match(/INV-M(\d)-/);if(m)$('mi-term').value=m[1];}
+  $('mi-numpreview').style.display='none';
+}
+function saveInvoice(){
+  const sid=$('mi-student').value,desc=$('mi-desc').value.trim();
+  const sessions=parseInt($('mi-sessions').value)||0;
+  const cid=$('mi-course').value;
+  // Recalculate amount from sessions if course is selected
+  let amount;
+  if(cid&&sessions>0){
+    const c=DB.g('courses').find(x=>x.id===cid);
+    if(c)amount=calcFee(c.type,c.year,c.duration)*sessions;
+  }
+  if(!amount)amount=parseFloat($('mi-amount').value);
+  if(!sid||!desc||isNaN(amount)||amount<=0){toast('Student, course, sessions and description are required');return;}
+  const invoices=DB.g('invoices'),iid=$('mi-id').value;
+  const t=$('mi-type').value||'group',term=$('mi-term').value||'1';
+  const num=iid?(invoices.find(x=>x.id===iid)?.num||nextInvNum(t,term)):nextInvNum(t,term);
+  const obj={id:iid||uid(),num,studentId:sid,courseId:cid||'',sessions,desc,amount:amount.toFixed(2),due:$('mi-due').value,status:$('mi-status').value,paidDate:'',notes:$('mi-notes').value,created:iid?(invoices.find(x=>x.id===iid)?.created||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10)};
+  if(iid){const i=invoices.findIndex(x=>x.id===iid);invoices[i]=obj;}else invoices.push(obj);
+  // Re-lock amount field
+  $('mi-amount').setAttribute('readonly','');
+  DB.s('invoices',invoices);closeM('m-invoice');
+  if(curPage==='finance')renderInvoices(finTab==='summary'?'all':finTab);
+  if(curPage==='profile')renderProfInvoices();
+  renderProfileHeader&&profSid&&renderProfileHeader();
+  toast(iid?`Updated ✓`:`${num} created ✓`);
+}
+function markPaid(id){
+  const invoices=DB.g('invoices'),inv=invoices.find(x=>x.id===id);
+  if(inv){inv.status='Paid';inv.paidDate=new Date().toISOString().slice(0,10);}
+  DB.s('invoices',invoices);
+  if(curPage==='finance')renderInvoices(finTab==='summary'?'all':finTab);
+  if(curPage==='profile')renderProfInvoices();
+  renderDash();toast('Marked as paid ✓');
+}
+function delInvoice(id){
+  if(!confirm('Delete invoice?'))return;
+  DB.s('invoices',DB.g('invoices').filter(i=>i.id!==id));
+  if(curPage==='finance')renderInvoices(finTab==='summary'?'all':finTab);
+  if(curPage==='profile')renderProfInvoices();
+  toast('Deleted');
+}
+
+// ═══════════════════════════════════════════════
+// TRIALS & TERMS (inside profile)
+// ═══════════════════════════════════════════════
+function showDropReason(){$('mtr-drop-wrap').style.display=$('mtr-outcome').value==='dropped'?'block':'none';}
+function openTrialModal(sid){
+  $('mtr-title').textContent='Log Trial Session';
+  ['mtr-id','mtr-notes'].forEach(f=>$(f).value='');
+  $('mtr-sid').value=sid||profSid||'';
+  $('mtr-date').value=new Date().toISOString().slice(0,10);$('mtr-outcome').value='scheduled';$('mtr-reinvite').value='yes';$('mtr-fee').value='free';$('mtr-drop-wrap').style.display='none';$('mtr-reason').value='';
+  $('mtr-course').innerHTML='<option value="">Select…</option>'+DB.g('courses').filter(c=>c.status==='Active').map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  openM('m-trial');
+}
+function editTrial(id){
+  const t=DB.g('trials').find(x=>x.id===id);if(!t)return;
+  openTrialModal(t.studentId);$('mtr-id').value=t.id;$('mtr-course').value=t.courseId;$('mtr-date').value=t.date||'';$('mtr-fee').value=t.feeType||'free';$('mtr-outcome').value=t.outcome||'scheduled';$('mtr-reason').value=t.reason||'';$('mtr-reinvite').value=t.reinvite||'yes';$('mtr-notes').value=t.notes||'';showDropReason();
+}
+function saveTrial(){
+  const sid=$('mtr-sid').value,cid=$('mtr-course').value;
+  if(!sid||!cid){toast('Course required');return;}
+  const list=DB.g('trials'),tid=$('mtr-id').value;
+  const obj={id:tid||uid(),studentId:sid,courseId:cid,date:$('mtr-date').value,feeType:$('mtr-fee').value,outcome:$('mtr-outcome').value,reason:$('mtr-reason').value,reinvite:$('mtr-reinvite').value,notes:$('mtr-notes').value};
+  if(tid){const i=list.findIndex(x=>x.id===tid);list[i]=obj;}else list.push(obj);
+  DB.s('trials',list);closeM('m-trial');renderProfTrials();toast('Trial saved ✓');
+}
+function delTrial(id){if(!confirm('Delete?'))return;DB.s('trials',DB.g('trials').filter(t=>t.id!==id));renderProfTrials();toast('Deleted');}
+
+function openTermModal(sid,cid){
+  $('mterm-title').textContent='New Term Enrollment';
+  ['mterm-id','mterm-name','mterm-notes'].forEach(f=>$(f).value='');
+  $('mterm-sid').value=sid||profSid||'';$('mterm-sessions').value=8;$('mterm-done').value=0;$('mterm-fee').value='';$('mterm-status').value='Active';$('mterm-reinvite').value='yes';$('mterm-start').value=new Date().toISOString().slice(0,10);
+  $('mterm-course').innerHTML='<option value="">Select…</option>'+DB.g('courses').filter(c=>c.status==='Active').map(c=>`<option value="${c.id}">${c.name} — ${fmt$(calcFee(c.type,c.year,c.duration))}/session</option>`).join('');
+  if(cid){$('mterm-course').value=cid;calcTermFee();}
+  openM('m-term');
+}
+function editTerm(id){
+  const t=DB.g('terms').find(x=>x.id===id);if(!t)return;
+  openTermModal(t.studentId,t.courseId);$('mterm-title').textContent='Edit Term';$('mterm-id').value=t.id;$('mterm-name').value=t.termName||'';$('mterm-sessions').value=t.sessions||8;$('mterm-done').value=t.sessionsCompleted||0;$('mterm-fee').value=t.fee||'';$('mterm-start').value=t.start||'';$('mterm-status').value=t.status||'Active';$('mterm-reinvite').value=t.reinvite||'yes';$('mterm-notes').value=t.notes||'';
+}
+function calcTermFee(){
+  const cid=$('mterm-course').value,n=parseInt($('mterm-sessions').value)||8;
+  if(!cid)return;const c=DB.g('courses').find(x=>x.id===cid);if(c)$('mterm-fee').value=(calcFee(c.type,c.year,c.duration)*n).toFixed(2);
+}
+function saveTerm(){
+  const sid=$('mterm-sid').value,cid=$('mterm-course').value,name=$('mterm-name').value.trim();
+  if(!sid||!cid||!name){toast('Course and term name required');return;}
+  const list=DB.g('terms'),tid=$('mterm-id').value;
+  const obj={id:tid||uid(),studentId:sid,courseId:cid,termName:name,sessions:parseInt($('mterm-sessions').value)||8,sessionsCompleted:parseInt($('mterm-done').value)||0,fee:parseFloat($('mterm-fee').value)||0,start:$('mterm-start').value,status:$('mterm-status').value,reinvite:$('mterm-reinvite').value,notes:$('mterm-notes').value};
+  if(tid){const i=list.findIndex(x=>x.id===tid);list[i]=obj;}else list.push(obj);
+  DB.s('terms',list);closeM('m-term');renderProfTrials();toast('Term saved ✓');
+}
+function delTerm(id){if(!confirm('Delete?'))return;DB.s('terms',DB.g('terms').filter(t=>t.id!==id));renderProfTrials();toast('Deleted');}
+
+// ═══════════════════════════════════════════════
+// CRM / LEADS
+// ═══════════════════════════════════════════════
+let crmTab='leads';
+function swCRMTab(tab,el){crmTab=tab;document.querySelectorAll('#page-crm .tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');$('crm-leads').style.display=tab==='leads'?'block':'none';$('crm-pipeline').style.display=tab==='pipeline'?'block':'none';if(tab==='leads')renderLeads();else renderPipeline();}
+const PICO={WeChat:'🟢',Xiaohongshu:'📕',Instagram:'📸',Facebook:'🔵',Referral:'🤝','Walk-in':'🚶',Other:'💬'};
+const STAGES=['Enquired','WeChat Added','Trial Requested','Trial Done','Enrolled','Dropped','Cold'];
+const SBADGE={Enquired:'b-gold','WeChat Added':'b-blue','Trial Requested':'b-purple','Trial Done':'b-teal',Enrolled:'b-green',Dropped:'b-red',Cold:'b-gray'};
+
+function renderLeads(){
+  const q=($('lq')?.value||'').toLowerCase(),fp=$('lf-plat')?.value||'',fs=$('lf-stage')?.value||'';
+  let list=DB.g('leads');
+  if(q)list=list.filter(l=>(l.name+' '+(l.sname||'')).toLowerCase().includes(q));
+  if(fp)list=list.filter(l=>l.platform===fp);
+  if(fs)list=list.filter(l=>l.stage===fs);
+  list=list.sort((a,b)=>b.date.localeCompare(a.date));
+  $('lead-list').innerHTML=list.length?list.map(l=>`
+    <div class="card" style="margin-bottom:8px;padding:13px 15px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span style="font-size:20px;margin-top:1px">${PICO[l.platform]||'💬'}</span>
+          <div>
+            <div style="font-weight:600;font-size:13.5px">${l.name||'—'} ${l.sname?`<span style="font-weight:400;color:var(--tx3)">/ ${l.sname}</span>`:''}</div>
+            <div style="font-size:11px;color:var(--tx3);margin-top:2px">${l.platform||'—'} · ${fmtD(l.date)} ${l.year?'· '+l.year:''}</div>
+            ${l.interest?`<div style="font-size:12px;color:var(--tx2);margin-top:3px">Interested in: ${l.interest}</div>`:''}
+            ${l.wechat?`<div style="font-size:12px;color:var(--tx2)">WeChat: ${l.wechat}</div>`:''}
+            ${l.notes?`<div style="font-size:11.5px;color:var(--tx2);margin-top:4px;font-style:italic">"${l.notes.slice(0,120)}${l.notes.length>120?'…':''}"</div>`:''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          <span class="badge ${SBADGE[l.stage]||'b-gray'}">${l.stage||'—'}</span>
+          <div style="display:flex;gap:4px">
+            ${l.stage!=='Enrolled'&&l.stage!=='Dropped'&&l.stage!=='Cold'?`<button class="btn btn-ok btn-xs" onclick="advanceLead('${l.id}')">→ Next</button>`:''}
+            <button class="btn btn-blue btn-xs" onclick="openLeadModal('${l.id}')">Edit</button>
+            <button class="btn btn-red btn-xs" onclick="delLead('${l.id}')">Del</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:3px;margin-top:4px">
+            ${['Enquired','WeChat Added','Trial Requested','Trial Done','Enrolled'].map(st=>{const si=STAGES.indexOf(l.stage),ti=STAGES.indexOf(st);const done=si>ti&&!['Dropped','Cold'].includes(l.stage);const active=si===ti;const col=done?'var(--teal)':active?'var(--ac)':'var(--brd2)';return`<div style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0" title="${st}"></div>${st!=='Enrolled'?`<div style="width:12px;height:2px;background:${done?'var(--teal)':'var(--brd2)'}"></div>`:''}`}).join('')}
+          </div>
+        </div>
+      </div>
+      ${l.dropReason?`<div style="margin-top:7px;padding-top:7px;border-top:1px solid var(--brd);font-size:11.5px;color:var(--red)">Drop reason: ${l.dropReason}</div>`:''}
+    </div>`).join(''):'<div style="text-align:center;padding:40px;color:var(--tx3)">No leads yet. Log enquiries from WeChat, Instagram, Facebook and Xiaohongshu here.</div>';
+}
+function advanceLead(id){
+  const list=DB.g('leads'),l=list.find(x=>x.id===id);if(!l)return;
+  const skip=['Dropped','Cold'];
+  let next=STAGES.indexOf(l.stage)+1;
+  while(next<STAGES.length&&skip.includes(STAGES[next]))next++;
+  if(next<STAGES.length)l.stage=STAGES[next];
+  DB.s('leads',list);renderLeads();toast(`→ ${l.stage}`);
+}
+function renderPipeline(){
+  const leads=DB.g('leads');
+  const active=['Enquired','WeChat Added','Trial Requested','Trial Done','Enrolled'];
+  const cols={Enquired:'#f59e0b','WeChat Added':'#3b82f6','Trial Requested':'#7c3aed','Trial Done':'#0f766e',Enrolled:'#16a34a'};
+  $('pipeline-board').innerHTML=active.map(stage=>{
+    const sl=leads.filter(l=>l.stage===stage);
+    return`<div style="background:var(--surf2);border-radius:9px;padding:10px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);margin-bottom:8px;display:flex;justify-content:space-between"><span>${stage}</span><span class="badge b-gray">${sl.length}</span></div>
+      ${sl.length?sl.map(l=>`<div style="background:var(--surf);border:1px solid var(--brd);border-left:3px solid ${cols[stage]};border-radius:7px;padding:9px 10px;margin-bottom:7px;cursor:pointer" onclick="openLeadModal('${l.id}')"><div style="font-weight:500;font-size:12.5px">${l.name}</div>${l.sname?`<div style="font-size:11px;color:var(--tx3)">${l.sname}</div>`:''}<div style="font-size:11px;color:var(--tx3);margin-top:3px">${PICO[l.platform]||''} ${l.platform||'—'} · ${l.interest||'—'}</div></div>`).join(''):'<div style="text-align:center;padding:16px 0;color:var(--tx3);font-size:12px">Empty</div>'}
+    </div>`;
+  }).join('');
+}
+function openLeadModal(id){
+  $('ml-title').textContent=id?'Edit Lead':'Add Lead';
+  ['ml-id','ml-name','ml-sname','ml-wechat','ml-interest','ml-notes'].forEach(f=>$(f).value='');
+  $('ml-date').value=new Date().toISOString().slice(0,10);$('ml-platform').value='';$('ml-year').value='';$('ml-stage').value='Enquired';$('ml-wc-added').value='pending';$('ml-drop').value='';
+  $('ml-linked').innerHTML='<option value="">Not enrolled yet</option>'+DB.g('students').map(s=>`<option value="${s.id}">${s.first} ${s.last}</option>`).join('');
+  if(id){const l=DB.g('leads').find(x=>x.id===id);if(l){$('ml-id').value=l.id;$('ml-name').value=l.name||'';$('ml-sname').value=l.sname||'';$('ml-wechat').value=l.wechat||'';$('ml-date').value=l.date||'';$('ml-platform').value=l.platform||'';$('ml-interest').value=l.interest||'';$('ml-year').value=l.year||'';$('ml-stage').value=l.stage||'Enquired';$('ml-wc-added').value=l.wechatAdded||'pending';$('ml-drop').value=l.dropReason||'';$('ml-linked').value=l.linkedStudentId||'';$('ml-notes').value=l.notes||'';}}
+  openM('m-lead');
+}
+function saveLead(){
+  const name=$('ml-name').value.trim();if(!name){toast('Parent name required');return;}
+  const list=DB.g('leads'),lid=$('ml-id').value;
+  const obj={id:lid||uid(),name,sname:$('ml-sname').value,wechat:$('ml-wechat').value,date:$('ml-date').value,platform:$('ml-platform').value,interest:$('ml-interest').value,year:$('ml-year').value,stage:$('ml-stage').value,wechatAdded:$('ml-wc-added').value,dropReason:$('ml-drop').value,linkedStudentId:$('ml-linked').value,notes:$('ml-notes').value};
+  if(lid){const i=list.findIndex(x=>x.id===lid);list[i]=obj;}else list.push(obj);
+  DB.s('leads',list);closeM('m-lead');renderLeads();toast(lid?'Updated ✓':'Lead added ✓');
+}
+function delLead(id){if(!confirm('Delete lead?'))return;DB.s('leads',DB.g('leads').filter(l=>l.id!==id));renderLeads();toast('Deleted');}
+
+
+// ═══════════════════════════════════════════════
+// NOTIFY / SCHEDULE CHANGE
+// ═══════════════════════════════════════════════
+let notifyCid = null;
+
+function openNotifyModal(cid){
+  notifyCid = cid;
+  const c = DB.g('courses').find(x=>x.id===cid);
+  if(!c) return;
+  $('mn-title').textContent = 'Notify: Schedule Change';
+  $('mn-subtitle').textContent = c.name + (c.schedule ? ' · Current: ' + c.schedule : '');
+  $('mn-old-time').value = c.schedule || '';
+  $('mn-new-time').value = '';
+  $('mn-effective').value = '';
+  buildNotifyMsg();
+  buildContactList(cid);
+  openM('m-notify');
+}
+
+function buildNotifyMsg(){
+  const c = DB.g('courses').find(x=>x.id===notifyCid);
+  if(!c) return;
+  const newTime = $('mn-new-time').value.trim();
+  const oldTime = $('mn-old-time').value.trim() || c.schedule || 'the current time';
+  const effective = $('mn-effective').value;
+  const effStr = effective ? ' effective ' + fmtD(effective) : '';
+  const msg = newTime
+    ? `Dear Parent/Student,
+
+We would like to inform you that the schedule for ${c.name} has been updated.
+
+Previous time: ${oldTime}
+New time: ${newTime}${effStr}
+
+Please make note of this change. If you have any questions or concerns, please do not hesitate to contact us.
+
+Kind regards,
+Peak Education
+📞 +64 21 388 818
+📧 info@peakeducation.co.nz`
+    : `Dear Parent/Student,
+
+We are writing to notify you of an upcoming schedule change for ${c.name}.
+
+Please stay tuned for the updated class time.
+
+Kind regards,
+Peak Education
+📞 +64 21 388 818
+📧 info@peakeducation.co.nz`;
+  $('mn-msg').value = msg;
+}
+
+function buildContactList(cid){
+  const enrolls = DB.g('enrollments').filter(e=>e.courseId===cid&&e.status==='Active');
+  const students = DB.g('students');
+  const contacts = enrolls.map(e=>students.find(x=>x.id===e.studentId)).filter(Boolean);
+  $('mn-contact-label').textContent = `${contacts.length} Enrolled Student${contacts.length!==1?'s':''} — Contact List`;
+  if(!contacts.length){
+    $('mn-contacts').innerHTML='<div style="color:var(--tx3);font-size:12.5px;padding:8px 0">No enrolled students</div>';
+    return;
+  }
+  $('mn-contacts').innerHTML = contacts.map(s=>`
+    <div style="background:var(--surf2);border:1px solid var(--brd);border-radius:8px;padding:11px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <!-- Student -->
+        <div style="min-width:200px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:4px">Student</div>
+          <div style="font-weight:600;font-size:13px">${s.first} ${s.last}</div>
+          ${s.phone?`<div style="font-size:12px;color:var(--tx2);margin-top:2px;display:flex;align-items:center;gap:6px">
+            📞 ${s.phone}
+            <button class="btn btn-g btn-xs" onclick="copyText('${s.phone}','Phone copied')">Copy</button>
+            <a href="tel:${s.phone}" class="btn btn-g btn-xs" onclick="event.stopPropagation()">Call</a>
+          </div>`:''}
+          ${s.email?`<div style="font-size:12px;color:var(--tx2);margin-top:2px;display:flex;align-items:center;gap:6px">
+            ✉️ ${s.email}
+            <button class="btn btn-g btn-xs" onclick="copyText('${s.email}','Email copied')">Copy</button>
+            <a href="mailto:${s.email}?subject=Schedule+Change+Notice&body=${encodeURIComponent($('mn-msg')?.value||'')}" class="btn btn-p btn-xs" onclick="event.stopPropagation()">Send Email</a>
+          </div>`:'<div style="font-size:11px;color:var(--tx3);margin-top:2px">No student email</div>'}
+        </div>
+        <!-- Parent -->
+        <div style="min-width:200px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:4px">Parent — ${s.pname||'—'} ${s.prel?'('+s.prel+')':''}</div>
+          ${s.pphone?`<div style="font-size:12px;color:var(--tx2);margin-top:2px;display:flex;align-items:center;gap:6px">
+            📞 ${s.pphone}
+            <button class="btn btn-g btn-xs" onclick="copyText('${s.pphone}','Phone copied')">Copy</button>
+            <a href="tel:${s.pphone}" class="btn btn-g btn-xs" onclick="event.stopPropagation()">Call</a>
+          </div>`:'<div style="font-size:11px;color:var(--tx3)">No parent phone</div>'}
+          ${s.pemail?`<div style="font-size:12px;color:var(--tx2);margin-top:2px;display:flex;align-items:center;gap:6px">
+            ✉️ ${s.pemail}
+            <button class="btn btn-g btn-xs" onclick="copyText('${s.pemail}','Email copied')">Copy</button>
+            <a href="mailto:${s.pemail}?subject=Schedule+Change+Notice&body=${encodeURIComponent($('mn-msg')?.value||'')}" class="btn btn-p btn-xs" onclick="event.stopPropagation()">Send Email</a>
+          </div>`:'<div style="font-size:11px;color:var(--tx3)">No parent email</div>'}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function copyText(text, msg){
+  navigator.clipboard.writeText(text).then(()=>toast(msg||'Copied ✓')).catch(()=>{
+    const el=document.createElement('textarea');el.value=text;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);toast(msg||'Copied ✓');
+  });
+}
+
+function copyAllEmails(){
+  const enrolls=DB.g('enrollments').filter(e=>e.courseId===notifyCid&&e.status==='Active');
+  const students=DB.g('students');
+  const emails=[];
+  enrolls.forEach(e=>{
+    const s=students.find(x=>x.id===e.studentId);if(!s)return;
+    if(s.email)emails.push(s.email);
+    if(s.pemail)emails.push(s.pemail);
+  });
+  const unique=[...new Set(emails)];
+  if(!unique.length){toast('No emails found');return;}
+  copyText(unique.join(', '),'All emails copied ('+unique.length+') ✓');
+}
+
+function copyAllPhones(){
+  const enrolls=DB.g('enrollments').filter(e=>e.courseId===notifyCid&&e.status==='Active');
+  const students=DB.g('students');
+  const phones=[];
+  enrolls.forEach(e=>{
+    const s=students.find(x=>x.id===e.studentId);if(!s)return;
+    if(s.phone)phones.push(s.phone+' ('+s.first+')');
+    if(s.pphone)phones.push(s.pphone+' ('+s.pname+')');
+  });
+  const unique=[...new Set(phones)];
+  if(!unique.length){toast('No phone numbers found');return;}
+  copyText(unique.join('\n'),'All phones copied ('+unique.length+') ✓');
+}
+
+function saveNewSchedule(){
+  const newTime=$('mn-new-time').value.trim();
+  if(!newTime){toast('Enter the new time first');return;}
+  const courses=DB.g('courses'),c=courses.find(x=>x.id===notifyCid);
+  if(!c)return;
+  c.schedule=newTime;
+  DB.s('courses',courses);
+  closeM('m-notify');
+  renderCourses();
+  toast('Schedule updated to: '+newTime+' ✓');
+}
+
+// ═══════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════
+function exportData(){
+  const data={students:DB.g('students'),teachers:DB.g('teachers'),courses:DB.g('courses'),enrollments:DB.g('enrollments'),invoices:DB.g('invoices'),trials:DB.g('trials'),terms:DB.g('terms'),leads:DB.g('leads'),exported:new Date().toISOString()};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='peak-edu-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Exported ✓');
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+// _appBoot is called by the Firebase auth module after login
+window._appBoot = async () => {
+  // Show a loading indicator
+  document.getElementById('app-shell').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:100vh;width:100%;flex-direction:column;gap:12px">' +
+    '<div style="font-size:28px">🏔</div>' +
+    '<div style="font-size:14px;color:var(--tx2)">Loading your data…</div></div>';
+
+  // Restore the real shell HTML (we need it back after the loading placeholder)
+  // Actually: just reload the page is too complex — instead we hide/show
+  // The shell is always in DOM, we just show a loading overlay
+};
+
+// Simpler approach: don't replace innerHTML, show overlay
+window._appBoot = async () => {
+  // Show loading overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'load-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:8000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
+  overlay.innerHTML = '<div style="font-size:32px">🏔</div><div style="font-size:14px;color:var(--tx2);font-family:Sora,sans-serif">Loading your data…</div>';
+  document.body.appendChild(overlay);
+
+  try {
+    await loadFromFirestore();
+  } catch(e) {
+    console.warn('Firestore load failed, using local cache:', e);
+  }
+
+  // Seed only if completely empty (first-ever run)
+  seed();
+
+  // Remove overlay and boot
+  overlay.remove();
+  renderDash();
+};
+
+// Fallback for offline / no Firebase configured: boot from localStorage
+if (!window._authed) {
+  // If Firebase config is placeholder, boot directly for local use
+  const isPlaceholder = document.querySelector('script[type="module"]')?.textContent?.includes('YOUR_API_KEY');
+  // We detect this at runtime below
+}
+
+// Detect if Firebase is configured or still has placeholder values
+// If placeholder, bypass auth and boot locally
+setTimeout(() => {
+  const scripts = document.querySelectorAll('script[type="module"]');
+  let hasPlaceholder = false;
+  scripts.forEach(s => { if(s.textContent.includes('YOUR_API_KEY')) hasPlaceholder = true; });
+  if (hasPlaceholder) {
+    // No Firebase configured yet — run in local mode
+    console.info('Running in local mode (Firebase not configured yet)');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = 'flex';
+    document.getElementById('auth-user').textContent = 'Local mode';
+    seed();
+    renderDash();
+  }
+  // If Firebase IS configured, onAuthStateChanged handles everything
+}, 300);
+</script>
+</div><!-- /app-shell -->
+</body>
+</html>

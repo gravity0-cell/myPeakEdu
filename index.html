@@ -201,6 +201,7 @@ tbody tr:hover td{background:#fdf3e7}
 .tc-igcse{background:var(--purplel);color:var(--purple)}
 .tc-cam{background:#d1fae5;color:#065f46}
 .tc-pri{background:#ffedd5;color:#9a3412}
+.tc-ib{background:#d1fae5;color:#065f46}
 
 /* ── Modal ── */
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
@@ -284,9 +285,7 @@ textarea{resize:vertical;min-height:60px}
 
 
 /* ── Print Invoice ── */
-@media print {
-  body * { visibility: hidden !important; }
-  #print-invoice-area, #print-invoice-area * { visibility: visible !important; }
+/* print removed */
   #print-invoice-area { position: fixed; inset: 0; background: #fff; z-index: 99999; padding: 32px 40px; }
   #print-invoice-area a { color: #1a1a1a !important; text-decoration: none !important; }
   #print-invoice-area * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -358,12 +357,11 @@ textarea{resize:vertical;min-height:60px}
     <button class="sbi" onclick="nav('teachers')"><span class="ico">🧑‍🏫</span>Teachers</button>
     <div class="sb-sec">Academics</div>
     <button class="sbi" onclick="nav('courses')"><span class="ico">📚</span>Courses</button>
+    <button class="sbi" onclick="nav('timetable')"><span class="ico">🗓</span>Timetable</button>
     <div class="sb-sec">Finance</div>
     <button class="sbi" onclick="nav('finance')"><span class="ico">🧾</span>Invoices</button>
     <div class="sb-sec">Marketing</div>
     <button class="sbi" onclick="nav('crm')"><span class="ico">📱</span>CRM / Leads</button>
-    <div class="sb-sec">Tools</div>
-    <button class="sbi" onclick="nav('calendar')"><span class="ico">📅</span>Timetable</button>
   </nav>
   <div class="sb-foot">Epsom, Auckland · GST 15%</div>
 </aside>
@@ -372,24 +370,9 @@ textarea{resize:vertical;min-height:60px}
 <div class="main">
 <div class="topbar">
   <div class="topbar-title" id="pg-title">Dashboard</div>
-  <div style="position:relative;flex:1;max-width:300px;margin:0 14px">
-    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:12px;pointer-events:none">🔍</span>
-    <input id="global-search" placeholder="Search students, courses…"
-      style="width:100%;padding:6px 10px 6px 30px;border:1px solid var(--brd);border-radius:20px;font-family:'Sora',sans-serif;font-size:12px;background:var(--surf2);outline:none;color:var(--tx)"
-      oninput="globalSearch(this.value)" onfocus="$('gs-results').style.display='block'" onblur="setTimeout(()=>{$('gs-results').style.display='none'},200)">
-    <div id="gs-results" style="display:none;position:absolute;top:36px;left:0;right:0;background:var(--surf);border:1px solid var(--brd);border-radius:10px;box-shadow:var(--shl);max-height:320px;overflow-y:auto;z-index:200"></div>
-  </div>
   <div style="display:flex;gap:8px;align-items:center">
     <span id="auth-user" style="font-size:11px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-    <div style="position:relative;display:inline-block">
-      <button class="btn btn-g btn-sm" onclick="$('export-dd').style.display=$('export-dd').style.display==='block'?'none':'block'">⬇ Export ▾</button>
-      <div id="export-dd" style="display:none;position:absolute;right:0;top:32px;background:var(--surf);border:1px solid var(--brd);border-radius:9px;box-shadow:var(--shl);z-index:100;min-width:170px">
-        <div onclick="exportData();$('export-dd').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd)">📦 Backup (JSON)</div>
-        <div onclick="exportToExcel('students');$('export-dd').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd)">📊 Students (Excel)</div>
-        <div onclick="exportToExcel('invoices');$('export-dd').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd)">📊 Invoices (Excel)</div>
-        <div onclick="exportToExcel('courses');$('export-dd').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px">📊 Courses (Excel)</div>
-      </div>
-    </div>
+    <button class="btn btn-g btn-sm" onclick="exportData()">⬇ Export</button>
     <button class="btn btn-p btn-sm" id="add-btn" style="display:none" onclick="topAdd()">+ Add New</button>
     <button class="btn btn-g btn-sm" onclick="window._doSignOut()" title="Sign out" style="padding:5px 8px">⏻</button>
   </div>
@@ -398,16 +381,8 @@ textarea{resize:vertical;min-height:60px}
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <div class="page active" id="page-dash">
-  <!-- Overdue alert banner -->
-  <div id="dash-overdue-banner" style="display:none;background:#fff1f2;border:1px solid #fca5a5;border-radius:var(--r);padding:11px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:16px">⚠️</span>
-      <span id="dash-overdue-text" style="font-size:13px;font-weight:500;color:var(--red)"></span>
-    </div>
-    <button class="btn btn-red btn-sm" onclick="nav('finance')">View invoices →</button>
-  </div>
   <div class="stats" id="dash-stats"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
       <div class="card-hd"><span class="card-title">Recent Students</span><button class="btn btn-g btn-sm" onclick="nav('students')">View all →</button></div>
       <div class="tw"><table><thead><tr><th>Student</th><th>Year / School</th><th>Courses</th><th>Balance</th></tr></thead><tbody id="dash-s-tbl"></tbody></table></div>
@@ -415,22 +390,6 @@ textarea{resize:vertical;min-height:60px}
     <div class="card">
       <div class="card-hd"><span class="card-title">Unpaid Invoices</span><button class="btn btn-g btn-sm" onclick="nav('finance')">View all →</button></div>
       <div id="dash-inv-list"></div>
-    </div>
-  </div>
-  <!-- Trial conversion tracker + bulk invoice row -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <div class="card">
-      <div class="card-hd"><span class="card-title">Trial → Enrollment Conversion</span></div>
-      <div class="card-bd" id="dash-conversion"></div>
-    </div>
-    <div class="card">
-      <div class="card-hd">
-        <div>
-          <div class="card-title">Bulk Invoice Generator</div>
-          <div style="font-size:11px;color:var(--tx3);margin-top:2px">Generate invoices for all active enrollments at once</div>
-        </div>
-      </div>
-      <div class="card-bd" id="dash-bulk"></div>
     </div>
   </div>
 </div>
@@ -485,7 +444,7 @@ textarea{resize:vertical;min-height:60px}
 <div class="page" id="page-courses">
   <div class="tb">
     <div class="srch"><span class="si">🔍</span><input id="cq" oninput="renderCourses()" placeholder="Search courses…"></div>
-    <select id="cf-type" onchange="renderCourses()" style="width:140px"><option value="">All Types</option><option value="general">General Y7–10</option><option value="igcse">IGCSE Y11</option><option value="cambridge">Cambridge Y12–13</option><option value="private">Private</option></select>
+    <select id="cf-type" onchange="renderCourses()" style="width:140px"><option value="">All Types</option><option value="general">General Y7–10</option><option value="igcse">IGCSE Y11</option><option value="cambridge">Cambridge Y12–13</option><option value="private">Private</option><option value="ib">IB</option></select>
     <select id="cf-subj" onchange="renderCourses()" style="width:140px"><option value="">All Subjects</option><option>Mathematics</option><option>English Language</option><option>English Literature</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Economics</option><option>Computer Science</option><option>Science</option><option>Writing Skills</option><option>Reading Comprehension</option></select>
     <div class="tb-r"><button class="btn btn-p" onclick="openCourseModal()">+ Add Course</button></div>
   </div>
@@ -493,6 +452,24 @@ textarea{resize:vertical;min-height:60px}
     <table><thead><tr><th>Course</th><th>Type</th><th>Subject</th><th>Year</th><th>Teacher</th><th>Schedule</th><th>Fee/session</th><th>Enrolled</th><th>Status</th><th></th></tr></thead>
     <tbody id="c-tbl"></tbody></table>
   </div></div>
+</div>
+
+
+<!-- ═══════════════ TIMETABLE ═══════════════ -->
+<div class="page" id="page-timetable">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+    <div class="tabs">
+      <button class="tab active" onclick="swTTTab('general',this)">General Y7–10</button>
+      <button class="tab" onclick="swTTTab('igcse',this)">IGCSE Y11</button>
+      <button class="tab" onclick="swTTTab('as',this)">AS Y12</button>
+      <button class="tab" onclick="swTTTab('alevel',this)">A Level Y13</button>
+    </div>
+    <button class="btn btn-p btn-sm" onclick="openTTCourseModal()">+ Add Course to Timetable</button>
+  </div>
+  <div id="tt-general"></div>
+  <div id="tt-igcse" style="display:none"></div>
+  <div id="tt-as" style="display:none"></div>
+  <div id="tt-alevel" style="display:none"></div>
 </div>
 
 <!-- ═══════════════ FINANCE ═══════════════ -->
@@ -548,37 +525,6 @@ textarea{resize:vertical;min-height:60px}
   <div id="crm-pipeline" style="display:none">
     <div id="pipeline-board" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
   </div>
-</div>
-
-<!-- ═══════════════ TIMETABLE / CALENDAR ═══════════════ -->
-<div class="page" id="page-calendar">
-  <!-- Term dates banner -->
-  <div style="background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;box-shadow:var(--sh)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);margin-bottom:8px">2026 Term Dates</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="term-dates-bar"></div>
-  </div>
-  <!-- Day filter -->
-  <div class="tb" style="margin-bottom:14px">
-    <div id="day-filter" style="display:flex;gap:6px">
-      <button class="btn btn-p btn-sm" onclick="filterCalDay('all',this)">All Days</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Mon',this)">Mon</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Tue',this)">Tue</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Wed',this)">Wed</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Thu',this)">Thu</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Fri',this)">Fri</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Sat',this)">Sat</button>
-      <button class="btn btn-g btn-sm" onclick="filterCalDay('Sun',this)">Sun</button>
-    </div>
-    <div class="tb-r">
-      <select id="cal-type-filter" onchange="renderCalendar()" style="width:150px">
-        <option value="">All Types</option>
-        <option value="general">General Y7–10</option>
-        <option value="igcse">IGCSE Y11</option>
-        <option value="cambridge">AS / A Level</option>
-      </select>
-    </div>
-  </div>
-  <div id="calendar-grid"></div>
 </div>
 
 </div><!-- /content -->
@@ -774,7 +720,7 @@ textarea{resize:vertical;min-height:60px}
     <input type="hidden" id="mc-id">
     <div class="fr"><div class="fg"><label>Course Name *</label><input id="mc-name"></div><div class="fg"><label>Course Code</label><input id="mc-code"></div></div>
     <div class="fr3">
-      <div class="fg"><label>Type *</label><select id="mc-type" onchange="onCourseType()"><option value="">Select…</option><option value="general">General Y7–10</option><option value="igcse">IGCSE Y11</option><option value="cambridge">Cambridge Y12–13</option><option value="private">Private</option></select></div>
+      <div class="fg"><label>Type *</label><select id="mc-type" onchange="onCourseType()"><option value="">Select…</option><option value="general">General Y7–10</option><option value="igcse">IGCSE Y11</option><option value="cambridge">Cambridge Y12–13</option><option value="private">Private</option><option value="ib">IB</option></select></div>
       <div class="fg"><label>Subject</label><select id="mc-subj"><option value="">Select…</option><option>Mathematics</option><option>English Language</option><option>English Literature</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Economics</option><option>Computer Science</option><option>Science</option><option>Writing Skills</option><option>Reading Comprehension</option><option>Multiple</option></select></div>
       <div class="fg"><label>Year Level</label><select id="mc-year"><option value="">—</option><option>Year 7</option><option>Year 8</option><option>Year 9</option><option>Year 10</option><option>Year 11</option><option>Year 12</option><option>Year 13</option><option>All Years</option></select></div>
     </div>
@@ -786,6 +732,98 @@ textarea{resize:vertical;min-height:60px}
     <div class="fg"><label>Description</label><textarea id="mc-desc" style="min-height:50px"></textarea></div>
   </div>
   <div class="mft"><button class="btn btn-g" onclick="closeM('m-course')">Cancel</button><button class="btn btn-p" onclick="saveCourse()">Save Course</button></div>
+</div></div>
+
+<!-- Timetable Add Course Modal -->
+<div class="ov" id="m-tt-course"><div class="modal">
+  <div class="mhd"><span class="mtitle" id="mttc-title">Add Course to Timetable</span><button class="mclose" onclick="closeM('m-tt-course')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mttc-id">
+    <div class="fsec">Course Details</div>
+    <div class="fg"><label>Course Name *</label><input id="mttc-name" placeholder="e.g. Year 7 Mathematics"></div>
+    <div class="fr3">
+      <div class="fg"><label>Type *</label>
+        <select id="mttc-type">
+          <option value="">Select…</option>
+          <option value="general">General Y7–10</option>
+          <option value="igcse">IGCSE Y11</option>
+          <option value="cambridge">Cambridge Y12–13</option>
+          <option value="private">Private</option>
+          <option value="ib">IB (Private)</option>
+        </select>
+      </div>
+      <div class="fg"><label>Subject</label>
+        <select id="mttc-subj">
+          <option value="">Select…</option>
+          <option>Mathematics</option><option>English Language</option><option>English Literature</option>
+          <option>Physics</option><option>Chemistry</option><option>Biology</option>
+          <option>Economics</option><option>Computer Science</option>
+          <option>Science</option><option>Writing Skills</option><option>Reading Comprehension</option><option>Multiple</option>
+        </select>
+      </div>
+      <div class="fg"><label>Year Level</label>
+        <select id="mttc-year">
+          <option value="">—</option>
+          <option>Year 7</option><option>Year 8</option><option>Year 9</option><option>Year 10</option>
+          <option>Year 11</option><option>Year 12</option><option>Year 13</option><option>All Years</option>
+        </select>
+      </div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Teacher</label>
+        <select id="mttc-teacher"><option value="">No teacher assigned</option></select>
+      </div>
+      <div class="fg"><label>Capacity</label>
+        <input type="number" id="mttc-cap" placeholder="15" min="1">
+      </div>
+    </div>
+    <div class="fsec">Schedule</div>
+    <div class="fg"><label>Day</label>
+      <select id="mttc-day">
+        <option value="">No class scheduled</option>
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Start Time</label><input type="time" id="mttc-start"></div>
+      <div class="fg"><label>End Time</label><input type="time" id="mttc-end"></div>
+    </div>
+    <div class="fg"><label>Notes</label><input id="mttc-notes" placeholder="e.g. online, Room 3"></div>
+  </div>
+  <div class="mft">
+    <button class="btn btn-g" onclick="closeM('m-tt-course')">Cancel</button>
+    <button class="btn btn-p" onclick="saveTTCourse()">Save Course</button>
+  </div>
+</div></div>
+
+<!-- Timetable Edit Modal -->
+<div class="ov" id="m-tt"><div class="modal msm">
+  <div class="mhd"><span class="mtitle" id="mtt-title">Edit Class Time</span><button class="mclose" onclick="closeM('m-tt')">✕</button></div>
+  <div class="mbd">
+    <input type="hidden" id="mtt-code">
+    <div style="background:var(--surf2);border-radius:8px;padding:11px 13px;margin-bottom:14px">
+      <div style="font-size:12.5px;font-weight:600" id="mtt-course-name"></div>
+      <div style="font-size:11.5px;color:var(--tx3);margin-top:2px" id="mtt-teacher-name"></div>
+    </div>
+    <div class="fg"><label>Day of Week</label>
+      <select id="mtt-day">
+        <option value="">No class</option>
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Start Time</label><input type="time" id="mtt-start"></div>
+      <div class="fg"><label>End Time</label><input type="time" id="mtt-end"></div>
+    </div>
+    <div class="fg"><label>Notes (optional)</label><input id="mtt-notes" placeholder="e.g. online, Room 3"></div>
+  </div>
+  <div class="mft">
+    <button class="btn btn-g" onclick="closeM('m-tt')">Cancel</button>
+    <button class="btn btn-red btn-sm" onclick="clearTTSlot()">Clear Time</button>
+    <button class="btn btn-p" onclick="saveTTSlot()">Save</button>
+  </div>
 </div></div>
 
 <!-- Lead Modal -->
@@ -855,45 +893,6 @@ textarea{resize:vertical;min-height:60px}
   </div>
 </div></div>
 
-<!-- Timetable Edit Modal -->
-<div class="ov" id="m-timetable"><div class="modal">
-  <div class="mhd">
-    <span class="mtitle" id="mt-sched-title">Edit Class Schedule</span>
-    <button class="mclose" onclick="closeM('m-timetable')">✕</button>
-  </div>
-  <div class="mbd">
-    <input type="hidden" id="mt-sched-cid">
-    <div class="fg"><label>Course</label><input id="mt-sched-name" readonly style="background:var(--surf2);font-weight:600"></div>
-    <div class="fr">
-      <div class="fg"><label>Day *</label>
-        <select id="mt-sched-day">
-          <option value="">Select day…</option>
-          <option>Mon</option><option>Tue</option><option>Wed</option>
-          <option>Thu</option><option>Fri</option><option>Sat</option><option>Sun</option>
-        </select>
-      </div>
-      <div class="fg"><label>Time *</label>
-        <input id="mt-sched-time" placeholder="e.g. 4:30-6:00pm">
-      </div>
-    </div>
-    <div class="fg">
-      <label>Online?</label>
-      <select id="mt-sched-online">
-        <option value="">In person</option>
-        <option value="online">Online</option>
-      </select>
-    </div>
-    <div class="fg"><label>Start Date</label><input type="date" id="mt-sched-start"></div>
-    <div id="mt-sched-preview" style="display:none;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:9px 13px;font-size:12.5px;margin-top:4px">
-      Preview: <strong id="mt-sched-prev-val"></strong>
-    </div>
-  </div>
-  <div class="mft">
-    <button class="btn btn-g" onclick="closeM('m-timetable')">Cancel</button>
-    <button class="btn btn-p" onclick="saveSchedule()">Save Schedule</button>
-  </div>
-</div></div>
-
 <div id="toast"></div>
 
 <script>
@@ -927,7 +926,7 @@ const DB = {
 // Load all collections from Firestore into cache on login
 async function loadFromFirestore() {
   if (!window._FS) return;
-  const keys = ['students','teachers','courses','enrollments','invoices','trials','terms','leads'];
+  const keys = ['students','teachers','courses','enrollments','invoices','trials','terms','leads','timetable'];
   await Promise.all(keys.map(async k => {
     const data = await window._FS.fsGet(k);
     _cache[k] = data;
@@ -945,7 +944,7 @@ const GEN_HRS={'Year 7':1,'Year 8':1,'Year 9':1.5,'Year 10':1.5};
 function calcFee(type,year,duration){
   if(type==='general'){const h=GEN_HRS[year]||1;return parseFloat((h*50*GST).toFixed(4));}
   if(type==='igcse'||type==='cambridge')return parseFloat((1.5*70*GST).toFixed(4));
-  if(type==='private'){const d=parseFloat(duration)||1;return parseFloat((d*175*GST).toFixed(4));}
+  if(type==='private'||type==='ib'){const d=parseFloat(duration)||1;return parseFloat((d*175*GST).toFixed(4));}
   return 0;
 }
 function feeDesc(type,year,duration){
@@ -974,7 +973,7 @@ const SUBJ_COLORS={Mathematics:'b-blue','English Language':'b-gold','English Lit
 
 function sBadge(s){const m={Active:'b-green',Paid:'b-green',Inactive:'b-gray',Overdue:'b-red',Unpaid:'b-gold',Pending:'b-gold',Withdrawn:'b-gray',Completed:'b-blue',Upcoming:'b-blue'};return`<span class="badge ${m[s]||'b-gray'}">${s}</span>`;}
 function yBadge(y){if(!y||y==='All Years')return'<span style="color:var(--tx3);font-size:11px">All Years</span>';const m={'Year 7':'b-blue','Year 8':'b-blue','Year 9':'b-blue','Year 10':'b-blue','Year 11 (IGCSE)':'b-purple','Year 12 (AS)':'b-teal','Year 13 (A Level)':'b-green'};return`<span class="badge ${m[y]||'b-gray'}">${y}</span>`;}
-function tChip(t){const m={general:'tc-gen',igcse:'tc-igcse',cambridge:'tc-cam',private:'tc-pri'};const l={general:'General',igcse:'IGCSE',cambridge:'Cambridge',private:'Private'};return`<span class="tc ${m[t]||''}">${l[t]||t}</span>`;}
+function tChip(t){const m={general:'tc-gen',igcse:'tc-igcse',cambridge:'tc-cam',private:'tc-pri',ib:'tc-ib'};const l={general:'General',igcse:'IGCSE',cambridge:'Cambridge',private:'Private',ib:'IB'};return`<span class="tc ${m[t]||''}">${l[t]||t}</span>`;}
 function invBadge(num){const p=num&&num.startsWith('INV-P');return`<span class="${p?'inv-num-p':'inv-num-m'}">${num}</span>`;}
 
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
@@ -1009,41 +1008,49 @@ function seed(){
   const tId=(f,l)=>T.find(t=>t.first===f&&t.last===l)?.id||'';
 
   const courses=[
-    {id:uid(),name:'Year 7 Science',code:'GEN-Y7-SCI',type:'general',subj:'Science',year:'Year 7',teacherId:tId('Luiz','Garcia'),cap:15,schedule:'Fri 2:00-3:00pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'General Science for Year 7',duration:'1'},
-    {id:uid(),name:'Year 7 English Writing',code:'GEN-Y7-WRI',type:'general',subj:'Writing Skills',year:'Year 7',teacherId:tId('Adam','Driver'),cap:15,schedule:'Tue 4:30-5:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'English Writing for Year 7',duration:'1'},
-    {id:uid(),name:'Year 7 English Reading',code:'GEN-Y7-READ',type:'general',subj:'Reading Comprehension',year:'Year 7',teacherId:tId('Adam','Driver'),cap:15,schedule:'Tue 4:30-5:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'English Reading for Year 7',duration:'1'},
-    {id:uid(),name:'Year 7 Mathematics',code:'GEN-Y7-MATH',type:'general',subj:'Mathematics',year:'Year 7',teacherId:tId('Logan','Lee'),cap:15,schedule:'Fri 4:15-5:15pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Mathematics for Year 7',duration:'1'},
-    {id:uid(),name:'Year 8 Science',code:'GEN-Y8-SCI',type:'general',subj:'Science',year:'Year 8',teacherId:tId('Luiz','Garcia'),cap:15,schedule:'Fri 3:30-4:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'General Science for Year 8',duration:'1'},
-    {id:uid(),name:'Year 8 English Writing',code:'GEN-Y8-WRI',type:'general',subj:'Writing Skills',year:'Year 8',teacherId:tId('Adam','Driver'),cap:15,schedule:'Sat 10:00-11:00am',room:'',start:'2026-02-09',end:'',status:'Active',desc:'English Writing for Year 8',duration:'1'},
-    {id:uid(),name:'Year 8 English Reading',code:'GEN-Y8-READ',type:'general',subj:'Reading Comprehension',year:'Year 8',teacherId:tId('Adam','Driver'),cap:15,schedule:'Thu 4:30-5:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'English Reading for Year 8',duration:'1'},
-    {id:uid(),name:'Year 8 Mathematics',code:'GEN-Y8-MATH',type:'general',subj:'Mathematics',year:'Year 8',teacherId:tId('Logan','Lee'),cap:15,schedule:'Fri 5:15-6:15pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Mathematics for Year 8',duration:'1'},
-    {id:uid(),name:'Year 9 Science',code:'GEN-Y9-SCI',type:'general',subj:'Science',year:'Year 9',teacherId:tId('Tony','Kwok'),cap:15,schedule:'Fri 2:15-3:45pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'General Science for Year 9',duration:'1.5'},
-    {id:uid(),name:'Year 9 English R&W',code:'GEN-Y9-RW',type:'general',subj:'Reading Comprehension',year:'Year 9',teacherId:tId('Alex','Birchall'),cap:15,schedule:'Tue 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Reading & Writing for Year 9',duration:'1.5'},
-    {id:uid(),name:'Year 9 Mathematics',code:'GEN-Y9-MATH',type:'general',subj:'Mathematics',year:'Year 9',teacherId:tId('Logan','Lee'),cap:15,schedule:'Sat 8:30-10:00am',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Mathematics for Year 9',duration:'1.5'},
-    {id:uid(),name:'Year 10 Science',code:'GEN-Y10-SCI',type:'general',subj:'Science',year:'Year 10',teacherId:tId('Tony','Kwok'),cap:15,schedule:'Fri 4:00-5:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'General Science for Year 10',duration:'1.5'},
-    {id:uid(),name:'Year 10 English R&W',code:'GEN-Y10-RW',type:'general',subj:'Reading Comprehension',year:'Year 10',teacherId:tId('Alex','Birchall'),cap:15,schedule:'Thu 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Reading & Writing for Year 10',duration:'1.5'},
-    {id:uid(),name:'Year 10 Mathematics',code:'GEN-Y10-MATH',type:'general',subj:'Mathematics',year:'Year 10',teacherId:tId('Logan','Lee'),cap:15,schedule:'Sat 10:00-11:30am',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Mathematics for Year 10',duration:'1.5'},
-    {id:uid(),name:'IGCSE Mathematics',code:'IGCSE-Y11-MATH',type:'igcse',subj:'Mathematics',year:'Year 11',teacherId:tId('Logan','Lee'),cap:10,schedule:'Sat 12:30-2:00pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE Mathematics',duration:'1.5'},
-    {id:uid(),name:'IGCSE English Language',code:'IGCSE-Y11-ENG-L',type:'igcse',subj:'English Language',year:'Year 11',teacherId:tId('Brooke','Kapa'),cap:10,schedule:'Mon 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE English Language',duration:'1.5'},
-    {id:uid(),name:'IGCSE English Literature',code:'IGCSE-Y11-ENG-LIT',type:'igcse',subj:'English Literature',year:'Year 11',teacherId:tId('Brooke','Kapa'),cap:10,schedule:'Tue 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE English Literature',duration:'1.5'},
-    {id:uid(),name:'IGCSE Physics',code:'IGCSE-Y11-PHY',type:'igcse',subj:'Physics',year:'Year 11',teacherId:tId('Luiz','Garcia'),cap:10,schedule:'Tue 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE Physics',duration:'1.5'},
-    {id:uid(),name:'IGCSE Chemistry',code:'IGCSE-Y11-CHEM',type:'igcse',subj:'Chemistry',year:'Year 11',teacherId:tId('Jana','Errington'),cap:10,schedule:'Fri 10:00-11:30am',room:'Online',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE Chemistry (online)',duration:'1.5'},
-    {id:uid(),name:'IGCSE Biology',code:'IGCSE-Y11-BIO',type:'igcse',subj:'Biology',year:'Year 11',teacherId:tId('Tony','Kwok'),cap:10,schedule:'Sat 8:30-10:00am',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE Biology',duration:'1.5'},
-    {id:uid(),name:'IGCSE Economics',code:'IGCSE-Y11-ECON',type:'igcse',subj:'Economics',year:'Year 11',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge IGCSE Economics',duration:'1.5'},
-    {id:uid(),name:'AS Level Mathematics',code:'AS-Y12-MATH',type:'cambridge',subj:'Mathematics',year:'Year 12',teacherId:tId('Logan','Lee'),cap:10,schedule:'Sat 2:15-3:45pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level Mathematics',duration:'1.5'},
-    {id:uid(),name:'AS Level English Literature',code:'AS-Y12-ENG-LIT',type:'cambridge',subj:'English Literature',year:'Year 12',teacherId:tId('Alex','Birchall'),cap:10,schedule:'Thu 6:30-8:00pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level English Literature',duration:'1.5'},
-    {id:uid(),name:'AS Level Physics',code:'AS-Y12-PHY',type:'cambridge',subj:'Physics',year:'Year 12',teacherId:tId('Omar','Gardner'),cap:10,schedule:'Thu 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level Physics',duration:'1.5'},
-    {id:uid(),name:'AS Level Chemistry',code:'AS-Y12-CHEM',type:'cambridge',subj:'Chemistry',year:'Year 12',teacherId:tId('Allan','Robertson'),cap:10,schedule:'Mon 4:30-6:00pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level Chemistry',duration:'1.5'},
-    {id:uid(),name:'AS Level Biology',code:'AS-Y12-BIO',type:'cambridge',subj:'Biology',year:'Year 12',teacherId:tId('Tony','Kwok'),cap:10,schedule:'Sat 10:00-11:30am',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level Biology',duration:'1.5'},
-    {id:uid(),name:'AS Level Economics',code:'AS-Y12-ECON',type:'cambridge',subj:'Economics',year:'Year 12',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'Tue 4:00-5:00pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level Economics',duration:'1.5'},
-    {id:uid(),name:'AS Level English Language',code:'AS-Y12-ENG-L',type:'cambridge',subj:'English Language',year:'Year 12',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level English Language',duration:'1.5'},
-    {id:uid(),name:'AS Level Computer Science',code:'AS-Y12-CS',type:'cambridge',subj:'Computer Science',year:'Year 12',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge AS Level Computer Science',duration:'1.5'},
-    {id:uid(),name:'A Level Mathematics',code:'AL-Y13-MATH',type:'cambridge',subj:'Mathematics',year:'Year 13',teacherId:tId('Logan','Lee'),cap:10,schedule:'Sat 4:00-5:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge A Level Mathematics',duration:'1.5'},
-    {id:uid(),name:'A Level Biology',code:'AL-Y13-BIO',type:'cambridge',subj:'Biology',year:'Year 13',teacherId:tId('Tony','Kwok'),cap:10,schedule:'Sat 12:30-2:00pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge A Level Biology',duration:'1.5'},
-    {id:uid(),name:'A Level Physics',code:'AL-Y13-PHY',type:'cambridge',subj:'Physics',year:'Year 13',teacherId:tId('Luiz','Garcia'),cap:10,schedule:'Wed 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge A Level Physics',duration:'1.5'},
-    {id:uid(),name:'A Level Chemistry',code:'AL-Y13-CHEM',type:'cambridge',subj:'Chemistry',year:'Year 13',teacherId:tId('Jana','Errington'),cap:10,schedule:'Sun 8:30-10:00am',room:'Online',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge A Level Chemistry (online)',duration:'1.5'},
-    {id:uid(),name:'A Level Economics',code:'AL-Y13-ECON',type:'cambridge',subj:'Economics',year:'Year 13',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'Thu 5:00-6:30pm',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge A Level Economics',duration:'1.5'},
-    {id:uid(),name:'A Level English Language',code:'AL-Y13-ENG-L',type:'cambridge',subj:'English Language',year:'Year 13',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'2026-02-09',end:'',status:'Active',desc:'Cambridge A Level English Language',duration:'1.5'},
+    {id:uid(),name:'Year 7 Science',code:'GEN-Y7-SCI',type:'general',subj:'Science',year:'Year 7',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 7',duration:'1'},
+    {id:uid(),name:'Year 7 English Reading',code:'GEN-Y7-ENG-READ',type:'general',subj:'Reading Comprehension',year:'Year 7',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'English Reading for Year 7',duration:'1'},
+    {id:uid(),name:'Year 7 Writing Skills',code:'GEN-Y7-WRI',type:'general',subj:'Writing Skills',year:'Year 7',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Writing Skills for Year 7',duration:'1'},
+    {id:uid(),name:'Year 8 Science',code:'GEN-Y8-SCI',type:'general',subj:'Science',year:'Year 8',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 8',duration:'1'},
+    {id:uid(),name:'Year 8 Writing Skills',code:'GEN-Y8-WRI',type:'general',subj:'Writing Skills',year:'Year 8',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Writing Skills for Year 8',duration:'1'},
+    {id:uid(),name:'Year 8 Reading Comprehension',code:'GEN-Y8-READ',type:'general',subj:'Reading Comprehension',year:'Year 8',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Reading Comprehension for Year 8',duration:'1'},
+    {id:uid(),name:'Year 9 Science',code:'GEN-Y9-SCI',type:'general',subj:'Science',year:'Year 9',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 9',duration:'1.5'},
+    {id:uid(),name:'Year 9 Reading & Writing',code:'GEN-Y9-RW',type:'general',subj:'Reading Comprehension',year:'Year 9',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Reading & Writing for Year 9',duration:'1.5'},
+    {id:uid(),name:'Year 10 Science',code:'GEN-Y10-SCI',type:'general',subj:'Science',year:'Year 10',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'General Science for Year 10',duration:'1.5'},
+    {id:uid(),name:'Year 10 Reading & Writing',code:'GEN-Y10-RW',type:'general',subj:'Reading Comprehension',year:'Year 10',teacherId:'',cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Reading & Writing for Year 10',duration:'1.5'},
+    {id:uid(),name:'Year 7 Mathematics',code:'GEN-Y7-MATH',type:'general',subj:'Mathematics',year:'Year 7',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 7',duration:'1'},
+    {id:uid(),name:'Year 8 Mathematics',code:'GEN-Y8-MATH',type:'general',subj:'Mathematics',year:'Year 8',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 8',duration:'1'},
+    {id:uid(),name:'Year 9 Mathematics',code:'GEN-Y9-MATH',type:'general',subj:'Mathematics',year:'Year 9',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 9',duration:'1.5'},
+    {id:uid(),name:'Year 10 Mathematics',code:'GEN-Y10-MATH',type:'general',subj:'Mathematics',year:'Year 10',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 10',duration:'1.5'},
+    {id:uid(),name:'IGCSE Mathematics',code:'IGCSE-Y11-MATH',type:'igcse',subj:'Mathematics',year:'Year 11',teacherId:tId('Logan','Lee'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Mathematics',duration:'1.5'},
+    {id:uid(),name:'IGCSE English Language',code:'IGCSE-Y11-ENG-L',type:'igcse',subj:'English Language',year:'Year 11',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE English Language',duration:'1.5'},
+    {id:uid(),name:'IGCSE English Literature',code:'IGCSE-Y11-ENG-LIT',type:'igcse',subj:'English Literature',year:'Year 11',teacherId:tId('Brooke','Kapa'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE English Literature',duration:'1.5'},
+    {id:uid(),name:'IGCSE Physics',code:'IGCSE-Y11-PHY',type:'igcse',subj:'Physics',year:'Year 11',teacherId:tId('Omar','Gardner'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Physics',duration:'1.5'},
+    {id:uid(),name:'IGCSE Chemistry',code:'IGCSE-Y11-CHEM',type:'igcse',subj:'Chemistry',year:'Year 11',teacherId:tId('Allan','Robertson'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Chemistry',duration:'1.5'},
+    {id:uid(),name:'IGCSE Biology',code:'IGCSE-Y11-BIO',type:'igcse',subj:'Biology',year:'Year 11',teacherId:tId('Tony','Kwok'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Biology',duration:'1.5'},
+    {id:uid(),name:'IGCSE Economics',code:'IGCSE-Y11-ECON',type:'igcse',subj:'Economics',year:'Year 11',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge IGCSE Economics',duration:'1.5'},
+    {id:uid(),name:'AS Level Mathematics',code:'AS-Y12-MATH',type:'cambridge',subj:'Mathematics',year:'Year 12',teacherId:tId('Logan','Lee'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Mathematics',duration:'1.5'},
+    {id:uid(),name:'AS Level English Language',code:'AS-Y12-ENG-L',type:'cambridge',subj:'English Language',year:'Year 12',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level English Language',duration:'1.5'},
+    {id:uid(),name:'AS Level English Literature',code:'AS-Y12-ENG-LIT',type:'cambridge',subj:'English Literature',year:'Year 12',teacherId:tId('Brooke','Kapa'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level English Literature',duration:'1.5'},
+    {id:uid(),name:'AS Level Physics',code:'AS-Y12-PHY',type:'cambridge',subj:'Physics',year:'Year 12',teacherId:tId('Omar','Gardner'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Physics',duration:'1.5'},
+    {id:uid(),name:'AS Level Chemistry',code:'AS-Y12-CHEM',type:'cambridge',subj:'Chemistry',year:'Year 12',teacherId:tId('Allan','Robertson'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Chemistry',duration:'1.5'},
+    {id:uid(),name:'AS Level Biology',code:'AS-Y12-BIO',type:'cambridge',subj:'Biology',year:'Year 12',teacherId:tId('Gordon','Whittleston'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Biology',duration:'1.5'},
+    {id:uid(),name:'AS Level Economics',code:'AS-Y12-ECON',type:'cambridge',subj:'Economics',year:'Year 12',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Economics',duration:'1.5'},
+    {id:uid(),name:'AS Level Computer Science',code:'AS-Y12-CS',type:'cambridge',subj:'Computer Science',year:'Year 12',teacherId:tId('Jacob','Samuel'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge AS Level Computer Science',duration:'1.5'},
+    {id:uid(),name:'A Level Mathematics',code:'AL-Y13-MATH',type:'cambridge',subj:'Mathematics',year:'Year 13',teacherId:tId('Logan','Lee'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Mathematics',duration:'1.5'},
+    {id:uid(),name:'A Level English Language',code:'AL-Y13-ENG-L',type:'cambridge',subj:'English Language',year:'Year 13',teacherId:tId('Steve','Walker'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level English Language',duration:'1.5'},
+    {id:uid(),name:'A Level Physics',code:'AL-Y13-PHY',type:'cambridge',subj:'Physics',year:'Year 13',teacherId:tId('Omar','Gardner'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Physics',duration:'1.5'},
+    {id:uid(),name:'A Level Chemistry',code:'AL-Y13-CHEM',type:'cambridge',subj:'Chemistry',year:'Year 13',teacherId:tId('Allan','Blackman'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Chemistry',duration:'1.5'},
+    {id:uid(),name:'A Level Biology',code:'AL-Y13-BIO',type:'cambridge',subj:'Biology',year:'Year 13',teacherId:tId('Gordon','Whittleston'),cap:10,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Cambridge A Level Biology',duration:'1.5'},
+    // IB (International Baccalaureate) — Private, no timetable
+    {id:uid(),name:'IB Mathematics',code:'IB-MATH',type:'private',subj:'Mathematics',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Mathematics (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB English Language & Literature',code:'IB-ENG',type:'private',subj:'English Language',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB English Language & Literature – private tuition',duration:'1'},
+    {id:uid(),name:'IB Physics',code:'IB-PHY',type:'private',subj:'Physics',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Physics (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Chemistry',code:'IB-CHEM',type:'private',subj:'Chemistry',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Chemistry (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Biology',code:'IB-BIO',type:'private',subj:'Biology',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Biology (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Economics',code:'IB-ECON',type:'private',subj:'Economics',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Economics (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Computer Science',code:'IB-CS',type:'private',subj:'Computer Science',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Computer Science (HL/SL) – private tuition',duration:'1'},
+    // Private Tuition
     {id:uid(),name:'Private Tuition 1hr',code:'PRI-1H',type:'private',subj:'Multiple',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'One-on-one tutoring – 1 hour',duration:'1'},
     {id:uid(),name:'Private Tuition 1.5hr',code:'PRI-1.5H',type:'private',subj:'Multiple',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'One-on-one tutoring – 1.5 hours',duration:'1.5'},
     {id:uid(),name:'Private Tuition 2hr',code:'PRI-2H',type:'private',subj:'Multiple',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'One-on-one tutoring – 2 hours',duration:'2'},
@@ -1080,8 +1087,8 @@ function seed(){
 // NAVIGATION
 // ═══════════════════════════════════════════════
 let curPage='dash';
-const PAGE_TITLES={dash:'Dashboard',students:'Students',profile:'Student Profile',teachers:'Teachers',courses:'Courses',finance:'Invoices',crm:'CRM / Leads',calendar:'Timetable'};
-const PAGES_WITH_ADD=['students','teachers','courses','finance','crm','calendar'];
+const PAGE_TITLES={dash:'Dashboard',students:'Students',profile:'Student Profile',teachers:'Teachers',courses:'Courses',timetable:'Timetable',finance:'Invoices',crm:'CRM / Leads'};
+const PAGES_WITH_ADD=['students','teachers','courses','finance','crm'];
 
 function nav(pg){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1089,7 +1096,7 @@ function nav(pg){
   $('page-'+pg)?.classList.add('active');
   document.querySelectorAll('.sbi').forEach(b=>{
     const t=b.textContent.trim().toLowerCase();
-    const match=pg==='dash'?t.includes('dashboard'):pg==='students'?t.includes('student'):pg==='teachers'?t.includes('teacher'):pg==='courses'?t.includes('course'):pg==='finance'?t.includes('finance'):pg==='crm'?t.includes('crm'):pg==='calendar'?t.includes('timetable'):false;
+    const match=pg==='dash'?t.includes('dashboard'):pg==='students'?t.includes('student'):pg==='teachers'?t.includes('teacher'):pg==='courses'?t.includes('course'):pg==='timetable'?t.includes('timetable'):pg==='finance'?t.includes('finance'):pg==='crm'?t.includes('crm'):false;
     if(match)b.classList.add('active');
   });
   $('pg-title').textContent=PAGE_TITLES[pg]||pg;
@@ -1100,8 +1107,8 @@ function nav(pg){
   if(pg==='teachers')renderTeachers();
   if(pg==='courses')renderCourses();
   if(pg==='finance')renderInvoices('all');
+  if(pg==='timetable'){renderTT('general');}
   if(pg==='crm')renderLeads();
-  if(pg==='calendar')renderCalendar();
 }
 
 function topAdd(){
@@ -1110,7 +1117,6 @@ function topAdd(){
   else if(curPage==='courses')openCourseModal();
   else if(curPage==='finance')openInvoiceModal();
   else if(curPage==='crm')openLeadModal();
-  else if(curPage==='calendar')editSchedule();
 }
 
 // ═══════════════════════════════════════════════
@@ -1120,14 +1126,6 @@ function renderDash(){
   const students=DB.g('students'),courses=DB.g('courses'),enrolls=DB.g('enrollments'),invoices=DB.g('invoices');
   const paid=invoices.filter(i=>i.status==='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
   const out=invoices.filter(i=>i.status!=='Paid').reduce((a,b)=>a+parseFloat(b.amount||0),0);
-  // Overdue alert banner
-  const overdue=invoices.filter(i=>i.status==='Overdue');
-  const banner=$('dash-overdue-banner');
-  if(overdue.length>0){
-    banner.style.display='flex';
-    const total=overdue.reduce((a,b)=>a+parseFloat(b.amount||0),0);
-    $('dash-overdue-text').textContent=`${overdue.length} overdue invoice${overdue.length!==1?'s':''} totalling ${fmt$(total)} — action required`;
-  } else { banner.style.display='none'; }
   $('dash-stats').innerHTML=`
     <div class="stat"><div class="stat-l">Students</div><div class="stat-v">${students.length}</div><div class="stat-s">${students.filter(s=>s.status==='Active').length} active</div></div>
     <div class="stat"><div class="stat-l">Teachers</div><div class="stat-v">${DB.g('teachers').length}</div><div class="stat-s">on team</div></div>
@@ -1149,48 +1147,6 @@ function renderDash(){
       <div><div style="font-size:12.5px;font-weight:500">${sName(inv.studentId)}</div><div style="font-size:10.5px;color:var(--tx3)">${inv.num} · Due ${fmtD(inv.due)}</div></div>
       <div style="display:flex;align-items:center;gap:7px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">${fmt$(inv.amount)}</span>${sBadge(inv.status)}</div>
     </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--tx3);font-size:12.5px">No pending invoices 🎉</div>';
-
-  // Trial conversion tracker
-  const trials=DB.g('trials');
-  const totalTrials=trials.length;
-  const converted=trials.filter(t=>t.outcome==='continued').length;
-  const dropped=trials.filter(t=>t.outcome==='dropped').length;
-  const scheduled=trials.filter(t=>t.outcome==='scheduled').length;
-  const pct=totalTrials>0?Math.round(converted/totalTrials*100):0;
-  $('dash-conversion').innerHTML=totalTrials===0
-    ?'<div style="color:var(--tx3);font-size:12.5px">No trial sessions logged yet.</div>'
-    :`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
-      <div class="ig-item"><div class="ig-l">Total Trials</div><div class="ig-v" style="font-size:20px;font-weight:700">${totalTrials}</div></div>
-      <div class="ig-item"><div class="ig-l">Converted</div><div class="ig-v" style="font-size:20px;font-weight:700;color:var(--teal)">${converted}</div></div>
-      <div class="ig-item"><div class="ig-l">Dropped</div><div class="ig-v" style="font-size:20px;font-weight:700;color:var(--red)">${dropped}</div></div>
-    </div>
-    <div style="margin-bottom:6px;font-size:12px;font-weight:600;color:var(--tx2)">Conversion Rate: ${pct}%</div>
-    <div class="prog" style="height:10px"><div class="prog-f" style="width:${pct}%"></div></div>
-    <div style="margin-top:8px;font-size:11.5px;color:var(--tx3)">${scheduled} trial${scheduled!==1?'s':''} still scheduled</div>`;
-
-  // Bulk invoice generator
-  const activeEnrolls=enrolls.filter(e=>e.status==='Active');
-  const mo=new Date().getMonth()+1;const curTerm=mo<=4?1:mo<=7?2:mo<=9?3:4;
-  $('dash-bulk').innerHTML=`
-    <div style="margin-bottom:12px;font-size:12.5px;color:var(--tx2)">${activeEnrolls.length} active enrollment${activeEnrolls.length!==1?'s':''} across ${[...new Set(activeEnrolls.map(e=>e.studentId))].length} students</div>
-    <div class="fr" style="margin-bottom:12px">
-      <div class="fg"><label>Number of Sessions</label>
-        <input type="number" id="bulk-sessions" value="8" min="1" max="20" style="width:100%;padding:8px 10px;border:1px solid var(--brd);border-radius:6px;font-family:'Sora',sans-serif;font-size:13px">
-      </div>
-      <div class="fg"><label>Term</label>
-        <select id="bulk-term" style="width:100%;padding:8px 10px;border:1px solid var(--brd);border-radius:6px;font-family:'Sora',sans-serif;font-size:13px">
-          <option value="1" ${curTerm===1?'selected':''}>Term 1</option>
-          <option value="2" ${curTerm===2?'selected':''}>Term 2</option>
-          <option value="3" ${curTerm===3?'selected':''}>Term 3</option>
-          <option value="4" ${curTerm===4?'selected':''}>Term 4</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-g btn-sm" onclick="previewBulkInvoices()">Preview</button>
-      <button class="btn btn-p btn-sm" onclick="generateBulkInvoices()">⚡ Generate All</button>
-    </div>
-    <div id="bulk-preview" style="margin-top:12px"></div>`;
 }
 
 // ═══════════════════════════════════════════════
@@ -1280,15 +1236,6 @@ function renderProfileHeader(){
         <button class="btn btn-g btn-sm" onclick="openStudentModal('${profSid}')">Edit Profile</button>
         <button class="btn btn-p btn-sm" onclick="openEnrollModal('${profSid}')">+ Enroll</button>
         <button class="btn btn-g btn-sm" onclick="openInvoiceModal('','${profSid}')">+ Invoice</button>
-        <div style="position:relative;display:inline-block">
-          <button class="btn btn-g btn-sm" onclick="$('msg-dd-${profSid}').style.display=$('msg-dd-${profSid}').style.display==='block'?'none':'block'">💬 Message ▾</button>
-          <div id="msg-dd-${profSid}" style="display:none;position:absolute;right:0;top:32px;background:var(--surf);border:1px solid var(--brd);border-radius:9px;box-shadow:var(--shl);z-index:50;min-width:190px">
-            <div onclick="openMsgTemplate('${profSid}','payment_reminder');$('msg-dd-${profSid}').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd)">💰 Payment Reminder</div>
-            <div onclick="openMsgTemplate('${profSid}','trial_confirm');$('msg-dd-${profSid}').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd)">🎯 Trial Confirmation</div>
-            <div onclick="openMsgTemplate('${profSid}','enrollment_confirm');$('msg-dd-${profSid}').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd)">✅ Enrollment Confirm</div>
-            <div onclick="openMsgTemplate('${profSid}','general');$('msg-dd-${profSid}').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:12.5px">📝 General Message</div>
-          </div>
-        </div>
       </div>
     </div>`;
 }
@@ -1774,11 +1721,18 @@ function onInvStudentChange(){
     opts+=others.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     opts+='</optgroup>';
   }
-  // Private — show as single entry; duration chosen via buttons after
-  const anyPrivate=courses.find(c=>c.type==='private'&&c.status==='Active');
+  // Private Tuition — single entry; duration chosen via buttons
+  const anyPrivate=courses.find(c=>c.type==='private'&&c.status==='Active'&&c.code.startsWith('PRI-'));
   if(anyPrivate){
     opts+='<optgroup label="── Private Tuition ──">';
     opts+=`<option value="${anyPrivate.id}">Private Tuition (choose duration below)</option>`;
+    opts+='</optgroup>';
+  }
+  // IB courses — list individually
+  const ibCourses=courses.filter(c=>(c.type==='private'||c.type==='ib')&&c.status==='Active'&&c.code.startsWith('IB-'));
+  if(ibCourses.length){
+    opts+='<optgroup label="── IB Courses ──">';
+    opts+=ibCourses.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     opts+='</optgroup>';
   }
   $('mi-course').innerHTML=opts;
@@ -2084,393 +2038,6 @@ function saveLead(){
 function delLead(id){if(!confirm('Delete lead?'))return;DB.s('leads',DB.g('leads').filter(l=>l.id!==id));renderLeads();toast('Deleted');}
 
 
-
-// ═══════════════════════════════════════════════
-// GLOBAL SEARCH
-// ═══════════════════════════════════════════════
-function globalSearch(q){
-  const res=$('gs-results');
-  if(!q||q.length<2){res.innerHTML='';res.style.display='none';return;}
-  res.style.display='block';
-  const ql=q.toLowerCase();
-  const students=DB.g('students').filter(s=>(s.first+' '+s.last+s.email+s.school).toLowerCase().includes(ql)).slice(0,5);
-  const courses=DB.g('courses').filter(c=>(c.name+c.code).toLowerCase().includes(ql)).slice(0,4);
-  const invoices=DB.g('invoices').filter(i=>(i.num+i.desc+sName(i.studentId)).toLowerCase().includes(ql)).slice(0,4);
-  if(!students.length&&!courses.length&&!invoices.length){
-    res.innerHTML='<div style="padding:14px 16px;color:var(--tx3);font-size:12.5px">No results</div>';return;
-  }
-  let html='';
-  if(students.length){
-    html+='<div style="padding:7px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3)">Students</div>';
-    html+=students.map(s=>`<div style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--brd)" onmousedown="openProfile('${s.id}');$('global-search').value='';$('gs-results').style.display='none'">
-      <div class="av" style="width:26px;height:26px;font-size:10px">${inits(s.first+' '+s.last)}</div>
-      <div><div style="font-size:12.5px;font-weight:500">${s.first} ${s.last}</div><div style="font-size:11px;color:var(--tx3)">${s.year||''} · ${s.school||''}</div></div>
-    </div>`).join('');
-  }
-  if(courses.length){
-    html+='<div style="padding:7px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3)">Courses</div>';
-    html+=courses.map(c=>`<div style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--brd)" onmousedown="nav('courses');$('global-search').value='';$('gs-results').style.display='none'">
-      <span style="font-size:13px">${{general:'📗',igcse:'📘',cambridge:'📕',private:'📙'}[c.type]||'📚'}</span>
-      <div><div style="font-size:12.5px;font-weight:500">${c.name}</div><div style="font-size:11px;color:var(--tx3)">${c.schedule||'No schedule set'}</div></div>
-    </div>`).join('');
-  }
-  if(invoices.length){
-    html+='<div style="padding:7px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3)">Invoices</div>';
-    html+=invoices.map(i=>`<div style="padding:8px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--brd)" onmousedown="openProfile('${i.studentId}');$('global-search').value='';$('gs-results').style.display='none'">
-      <div><div style="font-size:12px;font-weight:500">${sName(i.studentId)}</div><div style="font-size:11px;color:var(--tx3)">${i.num}</div></div>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:12px">${fmt$(i.amount)}</span>
-    </div>`).join('');
-  }
-  res.innerHTML=html;
-}
-
-// ═══════════════════════════════════════════════
-// BULK INVOICE GENERATOR
-// ═══════════════════════════════════════════════
-function previewBulkInvoices(){
-  const sessions=parseInt($('bulk-sessions')?.value)||8;
-  const term=parseInt($('bulk-term')?.value)||1;
-  const enrolls=DB.g('enrollments').filter(e=>e.status==='Active');
-  const courses=DB.g('courses'),students=DB.g('students'),invoices=DB.g('invoices');
-  const month=new Date().toLocaleDateString('en-NZ',{month:'long',year:'numeric'});
-  let rows='',count=0,total=0;
-  enrolls.forEach(e=>{
-    const c=courses.find(x=>x.id===e.courseId),s=students.find(x=>x.id===e.studentId);
-    if(!c||!s)return;
-    const fee=calcFee(c.type,c.year,c.duration);if(!fee)return;
-    const desc=`${c.name} – Term ${term} (${sessions} sessions)`;
-    if(invoices.find(i=>i.studentId===e.studentId&&i.desc===desc))return;
-    const amt=fee*sessions;total+=amt;count++;
-    rows+=`<tr><td style="padding:5px 8px;font-size:12px">${s.first} ${s.last}</td><td style="padding:5px 8px;font-size:12px;color:var(--tx2)">${c.name}</td><td style="padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:12px">${fmt$(amt)}</td></tr>`;
-  });
-  const preview=$('bulk-preview');
-  if(!count){preview.innerHTML='<div style="color:var(--tx3);font-size:12.5px">Nothing to generate — all invoices already exist for this description.</div>';return;}
-  preview.innerHTML=`<div style="background:var(--surf2);border-radius:8px;padding:10px;max-height:200px;overflow-y:auto">
-    <div style="font-size:11.5px;font-weight:600;color:var(--tx2);margin-bottom:8px">${count} invoice${count!==1?'s':''} to generate — Total: ${fmt$(total)}</div>
-    <table style="width:100%;border-collapse:collapse"><tbody>${rows}</tbody></table>
-  </div>`;
-}
-
-function generateBulkInvoices(){
-  const sessions=parseInt($('bulk-sessions')?.value)||8;
-  const term=parseInt($('bulk-term')?.value)||1;
-  const enrolls=DB.g('enrollments').filter(e=>e.status==='Active');
-  const courses=DB.g('courses'),students=DB.g('students');
-  const invoices=DB.g('invoices');
-  let created=0;
-  enrolls.forEach(e=>{
-    const c=courses.find(x=>x.id===e.courseId),s=students.find(x=>x.id===e.studentId);
-    if(!c||!s)return;
-    const fee=calcFee(c.type,c.year,c.duration);if(!fee)return;
-    const desc=`${c.name} – Term ${term} (${sessions} sessions)`;
-    if(invoices.find(i=>i.studentId===e.studentId&&i.desc===desc))return;
-    const due=new Date();due.setDate(due.getDate()+14);
-    const t=c.type==='private'?'private':'group';
-    const amt=(fee*sessions).toFixed(2);
-    invoices.push({id:uid(),num:nextInvNum(t,term),studentId:e.studentId,courseId:e.courseId,sessions,desc,amount:amt,due:due.toISOString().slice(0,10),status:'Unpaid',paidDate:'',notes:'Bulk generated',created:new Date().toISOString().slice(0,10)});
-    created++;
-  });
-  DB.s('invoices',invoices);
-  renderDash();
-  toast(created?`${created} invoice${created!==1?'s':''} generated ✓`:'Nothing new to generate');
-}
-
-// ═══════════════════════════════════════════════
-// WHATSAPP / WECHAT MESSAGE TEMPLATES
-// ═══════════════════════════════════════════════
-function openMsgTemplate(studentId, type){
-  const s=DB.g('students').find(x=>x.id===studentId);
-  if(!s)return;
-  const invoices=DB.g('invoices').filter(i=>i.studentId===studentId&&i.status!=='Paid');
-  const out=invoices.reduce((a,b)=>a+parseFloat(b.amount||0),0);
-  const enrolls=DB.g('enrollments').filter(e=>e.studentId===studentId&&e.status==='Active');
-  const courses=DB.g('courses');
-  const courseList=enrolls.map(e=>cName(e.courseId)).join(', ');
-
-  const templates={
-    payment_reminder:`Dear ${s.pname||s.first},
-
-This is a friendly reminder that the following invoice${invoices.length!==1?'s are':' is'} outstanding for ${s.first} ${s.last}:
-
-${invoices.map(i=>`• ${i.num}: ${fmt$(i.amount)} (due ${fmtD(i.due)})`).join('
-')}
-
-Total outstanding: ${fmt$(out)}
-
-Please make payment to Peak Education Limited, ANZ 01-0194-0717789-00, using your name and invoice number as reference.
-
-Thank you,
-Peak Education`,
-    trial_confirm:`Dear ${s.pname||s.first},
-
-We are pleased to confirm a trial session for ${s.first} ${s.last}.
-
-Please arrive 5 minutes early. If you have any questions, feel free to contact us.
-
-We look forward to meeting you!
-
-Kind regards,
-Peak Education
-First Floor, Building C, 2-8 Manukau Road, Epsom`,
-    enrollment_confirm:`Dear ${s.pname||s.first},
-
-Welcome to Peak Education! We are delighted to confirm that ${s.first} ${s.last} has been successfully enrolled in:
-
-${courseList||'[Course Name]'}
-
-Please ensure payment is made before the first session. If you have any questions, do not hesitate to contact us.
-
-Kind regards,
-Peak Education`,
-    general:`Dear ${s.pname||s.first},
-
-Thank you for choosing Peak Education for ${s.first}'s learning journey.
-
-[Your message here]
-
-Kind regards,
-Peak Education`,
-  };
-
-  const labels={payment_reminder:'Payment Reminder',trial_confirm:'Trial Confirmation',enrollment_confirm:'Enrollment Confirmation',general:'General Message'};
-  const msg=templates[type]||templates.general;
-
-  // Show in a simple modal/popup
-  const existing=document.getElementById('msg-popup');if(existing)existing.remove();
-  const popup=document.createElement('div');
-  popup.id='msg-popup';
-  popup.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px';
-  popup.innerHTML=`<div style="background:var(--surf);border-radius:14px;box-shadow:var(--shl);width:520px;max-width:100%;max-height:90vh;overflow-y:auto">
-    <div style="padding:14px 18px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:14px;font-weight:600">${labels[type]} — ${s.first} ${s.last}</div>
-      <button onclick="document.getElementById('msg-popup').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--tx3)">✕</button>
-    </div>
-    <div style="padding:16px 18px">
-      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-        ${Object.keys(templates).map(k=>`<button onclick="document.getElementById('msg-ta').value=${JSON.stringify(templates[k])}" class="btn btn-g btn-xs">${labels[k]}</button>`).join('')}
-      </div>
-      <textarea id="msg-ta" style="width:100%;min-height:200px;padding:10px;border:1px solid var(--brd);border-radius:7px;font-family:'Sora',sans-serif;font-size:12.5px;line-height:1.7;resize:vertical">${msg}</textarea>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn btn-p btn-sm" onclick="copyText(document.getElementById('msg-ta').value,'Message copied ✓')">📋 Copy</button>
-        ${s.pphone?`<a href="https://wa.me/${s.pphone.replace(/\D/g,'')}" target="_blank" class="btn btn-ok btn-sm">💬 WhatsApp</a>`:''}
-        ${s.pphone?`<a href="sms:${s.pphone}" class="btn btn-g btn-sm">💬 SMS</a>`:''}
-        ${s.pemail?`<button class="btn btn-blue btn-sm" onclick="window.open('mailto:${s.pemail}?subject=Peak Education&body='+encodeURIComponent(document.getElementById('msg-ta').value))">✉️ Email Parent</button>`:''}
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(popup);
-  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
-}
-
-// ═══════════════════════════════════════════════
-// TIMETABLE / CALENDAR
-// ═══════════════════════════════════════════════
-const TERM_DATES_2026 = [
-  {name:'Module 1', short:'M1', dates:'Feb 9 – Apr 5', color:'#dbeafe', tc:'#1e40af'},
-  {name:'Module 2', short:'M2', dates:'Apr 20 – Jun 14', color:'#d1fae5', tc:'#065f46'},
-  {name:'Module 3', short:'M3', dates:'Jul 20 – Sep 27', color:'#ede9fe', tc:'#6d28d9'},
-  {name:'Module 4 (Y7-10)', short:'M4', dates:'Oct 12 – Dec 6', color:'#fef3cd', tc:'#92650a'},
-];
-const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-let calDayFilter='all';
-
-function filterCalDay(day, btn){
-  calDayFilter=day;
-  document.querySelectorAll('#day-filter .btn').forEach(b=>{b.className='btn btn-g btn-sm';});
-  btn.className='btn btn-p btn-sm';
-  renderCalendar();
-}
-
-function renderCalendar(){
-  // Term dates banner
-  $('term-dates-bar').innerHTML=TERM_DATES_2026.map(t=>`
-    <div style="background:${t.color};border-radius:8px;padding:9px 12px">
-      <div style="font-size:10px;font-weight:700;color:${t.tc};text-transform:uppercase;letter-spacing:.5px">${t.name}</div>
-      <div style="font-size:12px;font-weight:500;color:${t.tc};margin-top:3px">${t.dates}</div>
-    </div>`).join('');
-
-  const tf=$('cal-type-filter')?.value||'';
-  let courses=DB.g('courses').filter(c=>c.status==='Active'&&c.type!=='private'&&c.schedule&&c.schedule!=='By appointment');
-  if(tf)courses=courses.filter(c=>c.type===tf||(tf==='cambridge'&&c.type==='cambridge'));
-  const enrolls=DB.g('enrollments');
-
-  // Group by day
-  const byDay={};
-  DAYS.forEach(d=>byDay[d]=[]);
-  courses.forEach(c=>{
-    const day=DAYS.find(d=>c.schedule&&c.schedule.startsWith(d));
-    if(day){
-      if(calDayFilter!=='all'&&day!==calDayFilter)return;
-      byDay[day].push(c);
-    }
-  });
-
-  const typeColors={general:{bg:'#dbeafe',tc:'#1e40af',border:'#93c5fd'},igcse:{bg:'#ede9fe',tc:'#6d28d9',border:'#c4b5fd'},cambridge:{bg:'#d1fae5',tc:'#065f46',border:'#6ee7b7'}};
-
-  const activeDays=calDayFilter==='all'?DAYS.filter(d=>byDay[d].length>0):[calDayFilter];
-
-  if(!activeDays.length||activeDays.every(d=>!byDay[d].length)){
-    $('calendar-grid').innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3)">No courses scheduled for this day.</div>';
-    return;
-  }
-
-  let html=`<div style="display:grid;grid-template-columns:repeat(${Math.min(activeDays.length,4)},1fr);gap:12px">`;
-  activeDays.forEach(day=>{
-    if(!byDay[day].length)return;
-    const sorted=[...byDay[day]].sort((a,b)=>(a.schedule||'').localeCompare(b.schedule||''));
-    html+=`<div><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);margin-bottom:8px;padding-left:4px">${day}</div>`;
-    sorted.forEach(c=>{
-      const col=typeColors[c.type]||typeColors.general;
-      const enrolled=enrolls.filter(e=>e.courseId===c.id&&e.status==='Active').length;
-      const time=c.schedule.replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*/,'');
-      html+=`<div style="background:${col.bg};border:1px solid ${col.border};border-left:4px solid ${col.tc};border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer" onclick="nav('courses')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
-          <div style="font-size:12.5px;font-weight:600;color:${col.tc};flex:1">${c.name}</div>
-          <button onclick="event.stopPropagation();editSchedule('${c.id}')" style="background:rgba(255,255,255,.5);border:1px solid ${col.border};border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:${col.tc};font-family:Sora,sans-serif;flex-shrink:0">Edit</button>
-        </div>
-        <div style="font-size:11px;color:${col.tc};margin-top:4px;opacity:.85">⏰ ${time}</div>
-        <div style="font-size:11px;color:${col.tc};margin-top:2px;opacity:.85">👤 ${tName(c.teacherId)||'No teacher'}</div>
-        <div style="font-size:11px;color:${col.tc};margin-top:2px;opacity:.7">👥 ${enrolled} enrolled${c.cap?` / ${c.cap}`:''}</div>
-        ${c.schedule&&c.schedule.includes('online')?'<div style="font-size:10px;background:rgba(255,255,255,.6);border-radius:4px;padding:1px 6px;margin-top:4px;display:inline-block;color:'+col.tc+'">🌐 Online</div>':''}
-      </div>`;
-    });
-    html+='</div>';
-  });
-  html+='</div>';
-  $('calendar-grid').innerHTML=html;
-}
-
-
-// ═══════════════════════════════════════════════
-// TIMETABLE EDIT
-// ═══════════════════════════════════════════════
-function editSchedule(cid){
-  const courses=DB.g('courses');
-  if(cid){
-    const c=courses.find(x=>x.id===cid);
-    if(!c)return;
-    $('mt-sched-cid').value=c.id;
-    $('mt-sched-name').value=c.name;
-    // Parse existing schedule: "Mon 4:30-6:00pm" or "Mon 4:30-6:00pm (online)"
-    const sch=c.schedule||'';
-    const dayMatch=sch.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/);
-    const timeMatch=sch.match(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(.+?)(?:\s*\(online\))?$/);
-    $('mt-sched-day').value=dayMatch?dayMatch[1]:'';
-    $('mt-sched-time').value=timeMatch?timeMatch[1].replace(' (online)','').trim():'';
-    $('mt-sched-online').value=sch.includes('online')?'online':'';
-    $('mt-sched-start').value=c.start||'';
-    $('mt-sched-title').textContent='Edit Schedule';
-  } else {
-    // Add new schedule — let user pick a course
-    $('mt-sched-cid').value='';
-    $('mt-sched-name').value='';
-    $('mt-sched-day').value='';
-    $('mt-sched-time').value='';
-    $('mt-sched-online').value='';
-    $('mt-sched-start').value='';
-    $('mt-sched-title').textContent='Add / Edit Schedule';
-    // Replace name field with a course picker
-    const nameEl=$('mt-sched-name');
-    const sel=document.createElement('select');
-    sel.id='mt-sched-name';
-    sel.style.cssText=nameEl.style.cssText;
-    sel.innerHTML='<option value="">Select course…</option>'+
-      DB.g('courses').filter(c=>c.type!=='private'&&c.status==='Active')
-        .map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-    sel.onchange=function(){$('mt-sched-cid').value=this.value;};
-    nameEl.parentNode.replaceChild(sel,nameEl);
-  }
-  $('mt-sched-preview').style.display='none';
-  // Live preview
-  ['mt-sched-day','mt-sched-time','mt-sched-online'].forEach(id=>{
-    const el=$(id);if(el)el.oninput=el.onchange=updateSchedPreview;
-  });
-  openM('m-timetable');
-}
-
-function updateSchedPreview(){
-  const day=$('mt-sched-day').value;
-  const time=$('mt-sched-time').value.trim();
-  const online=$('mt-sched-online').value;
-  if(day&&time){
-    const preview=day+' '+time+(online?' (online)':'');
-    $('mt-sched-prev-val').textContent=preview;
-    $('mt-sched-preview').style.display='block';
-  } else {
-    $('mt-sched-preview').style.display='none';
-  }
-}
-
-function saveSchedule(){
-  const day=$('mt-sched-day').value;
-  const time=$('mt-sched-time').value.trim();
-  const online=$('mt-sched-online').value;
-  const start=$('mt-sched-start').value;
-  let cid=$('mt-sched-cid').value;
-  // If cid came from the picker
-  const nameSel=$('mt-sched-name');
-  if(!cid&&nameSel&&nameSel.tagName==='SELECT')cid=nameSel.value;
-  if(!cid){toast('Select a course');return;}
-  if(!day||!time){toast('Day and time are required');return;}
-  const schedule=day+' '+time+(online?' (online)':'');
-  const courses=DB.g('courses');
-  const c=courses.find(x=>x.id===cid);
-  if(!c)return;
-  c.schedule=schedule;
-  if(start)c.start=start;
-  DB.s('courses',courses);
-  // Restore name field to input if it was replaced with select
-  const nameEl=$('mt-sched-name');
-  if(nameEl&&nameEl.tagName==='SELECT'){
-    const inp=document.createElement('input');
-    inp.id='mt-sched-name';inp.readOnly=true;
-    inp.style.cssText='background:var(--surf2);font-weight:600';
-    nameEl.parentNode.replaceChild(inp,nameEl);
-  }
-  closeM('m-timetable');
-  renderCalendar();
-  toast(`${c.name} → ${schedule} ✓`);
-}
-
-// ═══════════════════════════════════════════════
-// EXPORT TO EXCEL (CSV)
-// ═══════════════════════════════════════════════
-function exportToExcel(type){
-  let csv='',filename='';
-  if(type==='students'){
-    const students=DB.g('students'),enrolls=DB.g('enrollments');
-    csv='First Name,Last Name,Year,School,Status,Student Email,Student Phone,Parent Name,Relationship,Parent Email,Parent Phone,Source,Active Courses,Notes\n';
-    students.forEach(s=>{
-      const me=enrolls.filter(e=>e.studentId===s.id&&e.status==='Active').map(e=>cName(e.courseId)).join('; ');
-      csv+=`"${s.first}","${s.last}","${s.year||''}","${s.school||''}","${s.status}","${s.email||''}","${s.phone||''}","${s.pname||''}","${s.prel||''}","${s.pemail||''}","${s.pphone||''}","${s.heard||''}","${me}","${s.notes||''}"
-`;
-    });
-    filename='peak-students-'+new Date().toISOString().slice(0,10)+'.csv';
-  } else if(type==='invoices'){
-    const invoices=DB.g('invoices');
-    csv='Invoice #,Student,Description,Amount,Due Date,Status,Paid Date,Notes\n';
-    invoices.forEach(i=>{
-      csv+=`"${i.num}","${sName(i.studentId)}","${i.desc}","${i.amount}","${fmtD(i.due)}","${i.status}","${i.paidDate?fmtD(i.paidDate):''}","${i.notes||''}"
-`;
-    });
-    filename='peak-invoices-'+new Date().toISOString().slice(0,10)+'.csv';
-  } else if(type==='courses'){
-    const courses=DB.g('courses'),enrolls=DB.g('enrollments');
-    csv='Course Name,Code,Type,Subject,Year,Teacher,Schedule,Fee/Session,Enrolled,Capacity,Status\n';
-    courses.filter(c=>c.type!=='private').forEach(c=>{
-      const enrolled=enrolls.filter(e=>e.courseId===c.id&&e.status==='Active').length;
-      const fee=calcFee(c.type,c.year,c.duration);
-      csv+=`"${c.name}","${c.code||''}","${c.type}","${c.subj||''}","${c.year||''}","${tName(c.teacherId)}","${c.schedule||''}","${fee.toFixed(2)}","${enrolled}","${c.cap||''}","${c.status}"
-`;
-    });
-    filename='peak-courses-'+new Date().toISOString().slice(0,10)+'.csv';
-  }
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download=filename;a.click();
-  toast('Exported to CSV ✓ (opens in Excel)');
-}
-
 // ═══════════════════════════════════════════════
 // NOTIFY / SCHEDULE CHANGE
 // ═══════════════════════════════════════════════
@@ -2770,8 +2337,385 @@ function printInvoice(id){
   },400);
 }
 
+
+// ═══════════════════════════════════════════════
+// TIMETABLE
+// ═══════════════════════════════════════════════
+
+// Default schedule data from timetable images
+// format: { day, start, end, notes }
+const DEFAULT_SCHEDULE = {
+  // ══════════════════════════════════════════════════════════════════
+  // General Y7–10  (Images 3 & 5)
+  // ══════════════════════════════════════════════════════════════════
+  // Y7 English
+  'GEN-Y7-ENG-READ':  { day:'Tuesday',   start:'16:30', end:'17:30', notes:'' },   // Y7 English Reading   Tue 4:30–5:30pm  (Adam Driver)
+  'GEN-Y7-WRI':       { day:'Saturday',  start:'08:30', end:'09:30', notes:'' },   // Y7 English Writing   Sat 8:30–9:30am  (Adam Driver)
+
+  // Y7 Science
+  'GEN-Y7-SCI':       { day:'Friday',    start:'14:00', end:'15:00', notes:'' },   // Y7 Science           Fri 2:00–3:00pm  (Luiz Garcia)
+
+  // Y8 English
+  'GEN-Y8-READ':      { day:'Thursday',  start:'16:30', end:'17:30', notes:'' },   // Y8 English Reading   Thu 4:30–5:30pm  (Adam Driver)
+  'GEN-Y8-WRI':       { day:'Saturday',  start:'10:00', end:'11:00', notes:'' },   // Y8 English Writing   Sat 10:00–11:00am (Adam Driver)
+
+  // Y8 Science
+  'GEN-Y8-SCI':       { day:'Friday',    start:'15:30', end:'16:30', notes:'' },   // Y8 Science           Fri 3:30–4:30pm  (Luiz Garcia)
+
+  // Y9 English & Science
+  'GEN-Y9-RW':        { day:'Tuesday',   start:'17:00', end:'18:30', notes:'' },   // Y9 English R&W       Tue 5:00–6:30pm  (Alex Birchall)
+  'GEN-Y9-SCI':       { day:'Friday',    start:'14:15', end:'15:45', notes:'' },   // Y9 Science           Fri 2:15–3:45pm  (Tony Kwok)
+
+  // Y10 English & Science
+  'GEN-Y10-RW':       { day:'Thursday',  start:'17:00', end:'18:30', notes:'' },   // Y10 English R&W      Thu 5:00–6:30pm  (Alex Birchall)
+  'GEN-Y10-SCI':      { day:'Friday',    start:'16:00', end:'17:30', notes:'' },   // Y10 Science          Fri 4:00–5:30pm  (Tony Kwok)
+
+  // Y7–10 Mathematics
+  'GEN-Y7-MATH':      { day:'Friday',    start:'16:15', end:'17:15', notes:'' },   // Y7 Maths             Fri 4:15–5:15pm  (Logan Lee)
+  'GEN-Y8-MATH':      { day:'Friday',    start:'17:15', end:'18:15', notes:'' },   // Y8 Maths             Fri 5:15–6:15pm  (Logan Lee)
+  'GEN-Y9-MATH':      { day:'Saturday',  start:'08:30', end:'10:00', notes:'' },   // Y9 Maths             Sat 8:30–10:00am (Logan Lee)
+  'GEN-Y10-MATH':     { day:'Saturday',  start:'10:00', end:'11:30', notes:'' },   // Y10 Maths            Sat 10:00–11:30am (Logan Lee)
+
+  // ══════════════════════════════════════════════════════════════════
+  // IGCSE Y11  (Image 2)
+  // ══════════════════════════════════════════════════════════════════
+  'IGCSE-Y11-ENG-LIT':{ day:'Tuesday',   start:'17:00', end:'18:30', notes:'' },   // IGCSE Eng Lit        Tue 5:00–6:30pm  (Brooke Kapa)
+  'IGCSE-Y11-ENG-L':  { day:'Monday',    start:'17:00', end:'18:30', notes:'' },   // IGCSE Eng Lang       Mon 5:00–6:30pm  (Brooke Kapa)
+  'IGCSE-Y11-MATH':   { day:'Saturday',  start:'12:30', end:'14:00', notes:'' },   // IGCSE Maths          Sat 12:30–2:00pm (Logan Lee)
+  'IGCSE-Y11-PHY':    { day:'Tuesday',   start:'17:00', end:'18:30', notes:'' },   // IGCSE Physics        Tue 5:00–6:30pm  (Luiz Garcia)
+  'IGCSE-Y11-CHEM':   { day:'Friday',    start:'10:00', end:'11:30', notes:'online' }, // IGCSE Chemistry  Fri 10:00–11:30am (Jana Errington)
+  'IGCSE-Y11-BIO':    { day:'Saturday',  start:'08:30', end:'10:00', notes:'' },   // IGCSE Biology        Sat 8:30–10:00am (Tony Kwok)
+  'IGCSE-Y11-ECON':   { day:'',          start:'',      end:'',      notes:'' },   // IGCSE Economics      (not on timetable)
+
+  // ══════════════════════════════════════════════════════════════════
+  // AS Level Y12  (Image 4)
+  // ══════════════════════════════════════════════════════════════════
+  'AS-Y12-ENG-LIT':   { day:'Thursday',  start:'18:30', end:'20:00', notes:'' },   // AS Eng Lit           Thu 6:30–8:00pm  (Alex Birchall)
+  'AS-Y12-ENG-L':     { day:'',          start:'',      end:'',      notes:'' },   // AS Eng Lang          (not on timetable)
+  'AS-Y12-MATH':      { day:'Saturday',  start:'14:15', end:'15:45', notes:'' },   // AS Maths             Sat 2:15–3:45pm  (Logan Lee)
+  'AS-Y12-CHEM':      { day:'Monday',    start:'16:30', end:'18:00', notes:'' },   // AS Chemistry         Mon 4:30–6:00pm  (Andrew Roger)
+  'AS-Y12-PHY':       { day:'Thursday',  start:'17:00', end:'18:30', notes:'' },   // AS Physics           Thu 5:00–6:30pm  (Omar Gardner)
+  'AS-Y12-BIO':       { day:'Saturday',  start:'10:00', end:'11:30', notes:'' },   // AS Biology           Sat 10:00–11:30am (Tony Kwok)
+  'AS-Y12-ECON':      { day:'Tuesday',   start:'16:00', end:'17:00', notes:'' },   // AS Economics         Tue 4:00–5:00pm  (Jacob Samuel)
+  'AS-Y12-CS':        { day:'',          start:'',      end:'',      notes:'' },   // AS Computer Science  (not on timetable)
+
+  // ══════════════════════════════════════════════════════════════════
+  // A Level Y13  (Image 1)
+  // ══════════════════════════════════════════════════════════════════
+  'AL-Y13-MATH':      { day:'Saturday',  start:'16:00', end:'17:30', notes:'' },   // A Level Maths        Sat 4:00–5:30pm  (Logan Lee)
+  'AL-Y13-BIO':       { day:'Saturday',  start:'12:30', end:'14:00', notes:'' },   // A Level Biology      Sat 12:30–2:00pm (Tony Kwok)
+  'AL-Y13-PHY':       { day:'Wednesday', start:'17:00', end:'18:30', notes:'' },   // A Level Physics      Wed 5:00–6:30pm  (Luiz Garcia)
+  'AL-Y13-CHEM':      { day:'Sunday',    start:'08:30', end:'10:00', notes:'online' }, // A Level Chemistry Sun 8:30–10:00am (Jana Errington)
+  'AL-Y13-ENG-L':     { day:'Thursday',  start:'17:00', end:'18:30', notes:'' },   // A Level Economics    Thu 5:00–6:30pm  (Jacob Samuel)
+};
+
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+// Get timetable for a course code — from DB override first, then default
+function getTT(code) {
+  const overrides = DB.g('timetable');
+  const ov = overrides.find(x=>x.code===code);
+  if(ov) return ov;
+  return DEFAULT_SCHEDULE[code] ? {code, ...DEFAULT_SCHEDULE[code]} : {code,day:'',start:'',end:'',notes:''};
+}
+
+function fmtTime(t) {
+  if(!t) return '';
+  const [h,m] = t.split(':');
+  const hr = parseInt(h);
+  const ampm = hr>=12?'pm':'am';
+  const h12 = hr>12?hr-12:hr===0?12:hr;
+  return `${h12}:${m}${ampm}`;
+}
+
+function timeRange(tt) {
+  if(!tt.day||!tt.start||!tt.end) return '<span style="color:var(--tx3);font-size:11px">—</span>';
+  return `<span style="font-size:12px;color:var(--tx2)">${fmtTime(tt.start)}–${fmtTime(tt.end)}</span>${tt.notes?`<span style="font-size:10.5px;color:var(--tx3);margin-left:4px">(${tt.notes})</span>`:''}`;
+}
+
+let ttTab = 'general';
+
+function swTTTab(tab, el) {
+  ttTab = tab;
+  document.querySelectorAll('#page-timetable .tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  ['general','igcse','as','alevel'].forEach(t=>$('tt-'+t).style.display=t===tab?'block':'none');
+  renderTT(tab);
+}
+
+function renderTT(tab) {
+  const courses = DB.g('courses');
+  const typeMap = {general:'general', igcse:'igcse', as:'cambridge', alevel:'cambridge'};
+  const yearFilter = {general:['Year 7','Year 8','Year 9','Year 10'], igcse:['Year 11'], as:['Year 12'], alevel:['Year 13']};
+  const titles = {general:'General Y7–10', igcse:'IGCSE Y11', as:'AS Level Y12', alevel:'A Level Y13'};
+  const moduleDates = {
+    general:'Module 1: Feb 9 – Apr 5 &nbsp;·&nbsp; Module 2: Apr 20 – Jun 14 &nbsp;·&nbsp; Module 3: Jul 20 – Sep 13 &nbsp;·&nbsp; Module 4: Oct 12 – Dec 6',
+    igcse:  'Module 1: Feb 9 – Apr 5 &nbsp;·&nbsp; Module 2: Apr 20 – Jun 14 &nbsp;·&nbsp; Module 3: Jul 20 – Aug 16, break Aug 17–30, resume Aug 31 – Sep 27',
+    as:     'Module 1: Feb 9 – Apr 5 &nbsp;·&nbsp; Module 2: Apr 20 – Jun 14 &nbsp;·&nbsp; Module 3: Jul 20 – Aug 16, break Aug 17–30, resume Aug 31 – Sep 27',
+    alevel: 'Module 1: Feb 9 – Apr 5 &nbsp;·&nbsp; Module 2: Apr 20 – Jun 14 &nbsp;·&nbsp; Module 3: Jul 20 – Aug 16, break Aug 17–30, resume Aug 31 – Sep 27',
+  };
+
+  // Subject display order for General tab
+  const SUBJ_ORDER = ['Mathematics','Science','Reading Comprehension','Writing Skills','English Language','English Literature','Physics','Chemistry','Biology','Economics','Computer Science','Multiple'];
+  const YEAR_ORDER = ['Year 7','Year 8','Year 9','Year 10','Year 11','Year 12','Year 13','All Years'];
+
+  const list = courses.filter(c => {
+    if(tab==='as') return c.type==='cambridge' && (c.year||'').includes('12');
+    if(tab==='alevel') return c.type==='cambridge' && (c.year||'').includes('13');
+    return c.type===typeMap[tab];
+  }).filter(c=>c.type!=='private')
+  .sort((a,b)=>{
+    if(tab==='general'){
+      // Sort by year first, then by subject
+      const yi = YEAR_ORDER.indexOf(a.year||'') - YEAR_ORDER.indexOf(b.year||'');
+      if(yi!==0) return yi;
+      return SUBJ_ORDER.indexOf(a.subj||'') - SUBJ_ORDER.indexOf(b.subj||'');
+    }
+    // For other tabs: sort by subject only
+    return SUBJ_ORDER.indexOf(a.subj||'') - SUBJ_ORDER.indexOf(b.subj||'');
+  });
+
+  const el = $('tt-'+tab);
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3)">No courses found</div>'; return; }
+
+  // Build grid: rows = courses, cols = days
+  let html = `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd" style="justify-content:space-between">
+        <div>
+          <div class="card-title">2026 ${titles[tab]} Timetable</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:3px">${moduleDates[tab]}</div>
+        </div>
+        <button class="btn btn-p btn-sm" onclick="exportTimetable('${tab}')">⬇ Export PNG</button>
+      </div>
+      <div id="tt-grid-${tab}" style="overflow-x:auto;padding:4px 0">
+      <table style="width:100%;border-collapse:collapse;min-width:760px">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:10px 14px;background:#1a3a6b;color:#fff;font-size:12px;font-weight:700;width:200px">Subjects</th>
+            ${DAYS.map(d=>`<th style="text-align:center;padding:10px 8px;background:#1a3a6b;color:#fff;font-size:12px;font-weight:700">${d}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>`;
+
+  list.forEach((c,i) => {
+    const tt = getTT(c.code);
+    const teacherName = c.teacherId ? DB.g('teachers').find(t=>t.id===c.teacherId) : null;
+    const tStr = teacherName ? `(${teacherName.first} ${teacherName.last})` : '';
+    const bg = i%2===0 ? '#f8faff' : '#fff';
+    html += `<tr style="background:${bg}">
+      <td style="padding:11px 14px;border:1px solid #dde3f0;font-size:12.5px;color:#1a3a6b;font-weight:500;line-height:1.4">
+        ${c.name}<br><span style="font-size:11px;color:#64748b;font-weight:400">${tStr}</span>
+        ${tt.notes?`<span style="font-size:10px;color:#9a3412;background:#fff7ed;padding:1px 5px;border-radius:10px;margin-left:4px">${tt.notes}</span>`:''}
+      </td>`;
+    DAYS.forEach(day => {
+      const active = tt.day===day && tt.start && tt.end;
+      html += `<td style="padding:8px 6px;border:1px solid #dde3f0;text-align:center;cursor:pointer;transition:background .15s${active?';background:#eff6ff':''}"
+        onclick="openTTEdit('${c.code}','${c.name}',${JSON.stringify(tStr)})">
+        ${active ? `<div style="background:#1a3a6b;color:#fff;border-radius:6px;padding:4px 6px;font-size:11.5px;font-weight:500;line-height:1.4">${fmtTime(tt.start)}<br>–${fmtTime(tt.end)}</div>` : '<span style="color:#e2e8f0;font-size:12px">+</span>'}
+      </td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += `</tbody></table></div></div>`;
+
+  // Also show a compact list view below
+  html += `<div class="card"><div class="card-hd"><span class="card-title">Quick List</span></div><div class="tw"><table><thead><tr>
+    <th>Course</th><th>Teacher</th><th>Day</th><th>Time</th><th>Notes</th><th></th>
+  </tr></thead><tbody>`;
+  list.forEach(c => {
+    const tt = getTT(c.code);
+    const teacherName = c.teacherId ? DB.g('teachers').find(t=>t.id===c.teacherId) : null;
+    const tStr = teacherName ? teacherName.first+' '+teacherName.last : '—';
+    html += `<tr>
+      <td style="font-weight:500;font-size:12.5px;color:#1a3a6b">${c.name}</td>
+      <td style="font-size:12px">${tStr}</td>
+      <td style="font-size:12.5px">${tt.day||'<span style="color:var(--tx3)">—</span>'}</td>
+      <td>${tt.start&&tt.end?`<span style="font-family:'JetBrains Mono',monospace;font-size:12px">${fmtTime(tt.start)} – ${fmtTime(tt.end)}</span>`:'<span style="color:var(--tx3)">Not set</span>'}</td>
+      <td style="font-size:11.5px;color:var(--tx3)">${tt.notes||'—'}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-blue btn-xs" onclick="openTTEdit('${c.code}','${c.name}','${tStr}')">Edit Time</button>
+        <button class="btn btn-g btn-xs" onclick="openTTCourseModal('${c.id}')">Edit Course</button>
+        <button class="btn btn-red btn-xs" onclick="delTTCourse('${c.id}','${c.name}')">Delete</button>
+      </div></td>
+    </tr>`;
+  });
+  html += '</tbody></table></div></div>';
+
+  el.innerHTML = html;
+}
+
+function openTTEdit(code, courseName, teacherStr) {
+  $('mtt-title').textContent = 'Edit Class Time';
+  $('mtt-code').value = code;
+  $('mtt-course-name').textContent = courseName;
+  $('mtt-teacher-name').textContent = teacherStr;
+  const tt = getTT(code);
+  $('mtt-day').value = tt.day||'';
+  $('mtt-start').value = tt.start||'';
+  $('mtt-end').value = tt.end||'';
+  $('mtt-notes').value = tt.notes||'';
+  openM('m-tt');
+}
+
+function saveTTSlot() {
+  const code = $('mtt-code').value;
+  const day = $('mtt-day').value;
+  const start = $('mtt-start').value;
+  const end = $('mtt-end').value;
+  const notes = $('mtt-notes').value.trim();
+  if(day && (!start||!end)) { toast('Please set both start and end time'); return; }
+  const list = DB.g('timetable');
+  const idx = list.findIndex(x=>x.code===code);
+  const obj = {code, day, start, end, notes};
+  if(idx>=0) list[idx]=obj; else list.push(obj);
+  DB.s('timetable', list);
+  closeM('m-tt');
+  renderTT(ttTab);
+  toast('Schedule updated ✓');
+}
+
+function clearTTSlot() {
+  const code = $('mtt-code').value;
+  const list = DB.g('timetable');
+  const idx = list.findIndex(x=>x.code===code);
+  const obj = {code, day:'', start:'', end:'', notes:''};
+  if(idx>=0) list[idx]=obj; else list.push(obj);
+  DB.s('timetable', list);
+  closeM('m-tt');
+  renderTT(ttTab);
+  toast('Time cleared ✓');
+}
+
+function exportTimetable(tab) {
+  const el = $('tt-grid-'+tab);
+  if(!el){ toast('Timetable not loaded'); return; }
+  toast('Generating PNG…');
+  setTimeout(async ()=>{
+    try {
+      const canvas = await html2canvas(el, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
+      const link = document.createElement('a');
+      const titles = {general:'General_Y7-10', igcse:'IGCSE_Y11', as:'AS_Y12', alevel:'ALevel_Y13'};
+      link.download = `Peak_Education_${titles[tab]}_Timetable_2026.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast('Timetable saved as PNG ✓');
+    } catch(e) { console.error(e); toast('Export failed'); }
+  }, 300);
+}
+
+// ── Timetable: Add / Edit / Delete course ────────────────────────────────
+function openTTCourseModal(courseId){
+  $('mttc-id').value = courseId||'';
+  $('mttc-title').textContent = courseId ? 'Edit Course' : 'Add Course to Timetable';
+  $('mttc-teacher').innerHTML = '<option value="">No teacher assigned</option>' +
+    DB.g('teachers').filter(t=>t.status==='Active').map(t=>`<option value="${t.id}">${t.first} ${t.last} (${t.subj})</option>`).join('');
+
+  if(courseId){
+    const c = DB.g('courses').find(x=>x.id===courseId);
+    if(c){
+      $('mttc-name').value = c.name||'';
+      $('mttc-type').value = c.type||'';
+      $('mttc-subj').value = c.subj||'';
+      $('mttc-year').value = c.year||'';
+      $('mttc-teacher').value = c.teacherId||'';
+      $('mttc-cap').value = c.cap||'';
+      const tt = getTT(c.code);
+      $('mttc-day').value = tt.day||'';
+      $('mttc-start').value = tt.start||'';
+      $('mttc-end').value = tt.end||'';
+      $('mttc-notes').value = tt.notes||'';
+    }
+  } else {
+    ['mttc-name','mttc-notes'].forEach(f=>$(f).value='');
+    $('mttc-type').value=''; $('mttc-subj').value=''; $('mttc-year').value='';
+    $('mttc-teacher').value=''; $('mttc-cap').value='';
+    $('mttc-day').value=''; $('mttc-start').value=''; $('mttc-end').value='';
+  }
+  openM('m-tt-course');
+}
+
+function saveTTCourse(){
+  const name = $('mttc-name').value.trim();
+  const type = $('mttc-type').value;
+  if(!name||!type){ toast('Course name and type required'); return; }
+
+  const courses = DB.g('courses');
+  const cid = $('mttc-id').value;
+  const code = cid ? (courses.find(x=>x.id===cid)?.code||uid()) : 'TT-'+uid();
+  const yr = $('mttc-year').value;
+  const dur = type==='private'?'1':type==='general'?(parseFloat(yr?.replace('Year ',''))||0)>=9?'1.5':'1':'1.5';
+
+  const obj = {
+    id: cid||uid(), name, code,
+    type, subj: $('mttc-subj').value,
+    year: yr,
+    teacherId: $('mttc-teacher').value,
+    cap: parseInt($('mttc-cap').value)||15,
+    schedule:'', room:'', start:'', end:'',
+    status:'Active', desc: name, duration: String(dur)
+  };
+
+  if(cid){ const i=courses.findIndex(x=>x.id===cid); courses[i]=obj; }
+  else courses.push(obj);
+  DB.s('courses', courses);
+
+  // Also save the schedule slot
+  const day=$('mttc-day').value, start=$('mttc-start').value, end=$('mttc-end').value, notes=$('mttc-notes').value.trim();
+  if(day||start||end){
+    const list = DB.g('timetable');
+    const idx = list.findIndex(x=>x.code===code);
+    const slot = {code, day, start, end, notes};
+    if(idx>=0) list[idx]=slot; else list.push(slot);
+    DB.s('timetable', list);
+  }
+
+  closeM('m-tt-course');
+  renderTT(ttTab);
+  toast((cid?'Course updated':'Course added')+' ✓');
+}
+
+function delTTCourse(courseId, courseName){
+  if(!confirm(`Delete "${courseName}" from timetable and all enrollments?`)) return;
+  DB.s('courses', DB.g('courses').filter(c=>c.id!==courseId));
+  DB.s('enrollments', DB.g('enrollments').filter(e=>e.courseId!==courseId));
+  renderTT(ttTab);
+  toast('Course deleted ✓');
+}
+
+
+// Patches missing courses into existing databases (runs on every boot)
+function syncNewCourses(){
+  const existing = DB.g('courses');
+  const codes = new Set(existing.map(c=>c.code));
+  const T = DB.g('teachers');
+  const tId = (f,l) => T.find(t=>t.first===f&&t.last===l)?.id||'';
+
+  const missing = [
+    {id:uid(),name:'Year 7 English Reading',code:'GEN-Y7-ENG-READ',type:'general',subj:'Reading Comprehension',year:'Year 7',teacherId:tId('Adam','Driver'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'English Reading for Year 7',duration:'1'},
+    {id:uid(),name:'Year 7 Mathematics',code:'GEN-Y7-MATH',type:'general',subj:'Mathematics',year:'Year 7',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 7',duration:'1'},
+    {id:uid(),name:'Year 8 Mathematics',code:'GEN-Y8-MATH',type:'general',subj:'Mathematics',year:'Year 8',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 8',duration:'1'},
+    {id:uid(),name:'Year 9 Mathematics',code:'GEN-Y9-MATH',type:'general',subj:'Mathematics',year:'Year 9',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 9',duration:'1.5'},
+    {id:uid(),name:'Year 10 Mathematics',code:'GEN-Y10-MATH',type:'general',subj:'Mathematics',year:'Year 10',teacherId:tId('Logan','Lee'),cap:15,schedule:'',room:'',start:'',end:'',status:'Active',desc:'Mathematics for Year 10',duration:'1.5'},
+    {id:uid(),name:'IB Mathematics',code:'IB-MATH',type:'private',subj:'Mathematics',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Mathematics (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB English Language & Literature',code:'IB-ENG',type:'private',subj:'English Language',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB English Language & Literature – private tuition',duration:'1'},
+    {id:uid(),name:'IB Physics',code:'IB-PHY',type:'private',subj:'Physics',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Physics (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Chemistry',code:'IB-CHEM',type:'private',subj:'Chemistry',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Chemistry (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Biology',code:'IB-BIO',type:'private',subj:'Biology',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Biology (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Economics',code:'IB-ECON',type:'private',subj:'Economics',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Economics (HL/SL) – private tuition',duration:'1'},
+    {id:uid(),name:'IB Computer Science',code:'IB-CS',type:'private',subj:'Computer Science',year:'All Years',teacherId:'',cap:1,schedule:'By appointment',room:'',start:'',end:'',status:'Active',desc:'IB Computer Science (HL/SL) – private tuition',duration:'1'},
+  ].filter(c => !codes.has(c.code));
+
+  if(missing.length){
+    DB.s('courses', [...existing, ...missing]);
+    console.log(`syncNewCourses: added ${missing.length} missing course(s)`);
+  }
+}
+
+
 function exportData(){
-  const data={students:DB.g('students'),teachers:DB.g('teachers'),courses:DB.g('courses'),enrollments:DB.g('enrollments'),invoices:DB.g('invoices'),trials:DB.g('trials'),terms:DB.g('terms'),leads:DB.g('leads'),exported:new Date().toISOString()};
+  const data={students:DB.g('students'),teachers:DB.g('teachers'),courses:DB.g('courses'),enrollments:DB.g('enrollments'),invoices:DB.g('invoices'),trials:DB.g('trials'),terms:DB.g('terms'),leads:DB.g('leads'),timetable:DB.g('timetable'),exported:new Date().toISOString()};
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='peak-edu-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Exported ✓');
 }
 
@@ -2779,19 +2723,6 @@ function exportData(){
 // INIT
 // ═══════════════════════════════════════════════
 // _appBoot is called by the Firebase auth module after login
-window._appBoot = async () => {
-  // Show a loading indicator
-  document.getElementById('app-shell').innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;height:100vh;width:100%;flex-direction:column;gap:12px">' +
-    '<div style="font-size:28px">🏔</div>' +
-    '<div style="font-size:14px;color:var(--tx2)">Loading your data…</div></div>';
-
-  // Restore the real shell HTML (we need it back after the loading placeholder)
-  // Actually: just reload the page is too complex — instead we hide/show
-  // The shell is always in DOM, we just show a loading overlay
-};
-
-// Simpler approach: don't replace innerHTML, show overlay
 window._appBoot = async () => {
   // Show loading overlay
   const overlay = document.createElement('div');
@@ -2808,6 +2739,8 @@ window._appBoot = async () => {
 
   // Seed only if completely empty (first-ever run)
   seed();
+  // Patch any missing courses added in later updates
+  syncNewCourses();
 
   // Remove overlay and boot
   overlay.remove();

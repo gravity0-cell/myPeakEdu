@@ -287,6 +287,8 @@ textarea{resize:vertical;min-height:60px}
   body * { visibility: hidden !important; }
   #print-invoice-area, #print-invoice-area * { visibility: visible !important; }
   #print-invoice-area { position: fixed; inset: 0; background: #fff; z-index: 99999; padding: 32px 40px; }
+  #print-invoice-area a { color: #1a1a1a !important; text-decoration: none !important; }
+  #print-invoice-area * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 /* ── Toast ── */
 #toast{position:fixed;bottom:20px;right:20px;background:var(--tx);color:#fff;padding:10px 16px;border-radius:8px;font-size:12.5px;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -2056,102 +2058,86 @@ function printInvoice(id){
   const s=DB.g('students').find(x=>x.id===inv.studentId);
   const sName=s?s.first+' '+s.last:'—';
   const today=new Date().toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'});
-  const dueDate=inv.due?new Date(inv.due).toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}):'';
   const amount=parseFloat(inv.amount)||0;
-  const gst=(amount/1.15*0.15);
-  const subtotal=amount-gst;
+  const gst=parseFloat((amount/1.15*0.15).toFixed(2));
+  const subtotal=parseFloat((amount-gst).toFixed(2));
 
-  // Remove any existing print area
   document.getElementById('print-invoice-area')?.remove();
-
   const div=document.createElement('div');
   div.id='print-invoice-area';
-  div.style.cssText='display:none;font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;';
+  div.style.cssText='display:none;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;background:#fff;';
   div.innerHTML=`
-    <div style="max-width:680px;margin:0 auto">
+    <style>*{color:#1a1a1a!important;text-decoration:none!important}</style>
+    <div style="max-width:700px;margin:0 auto;padding:10px 0">
 
-      <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1a1a1a">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
         <div>
-          <div style="font-size:20px;font-weight:700;letter-spacing:-.3px">Peak Education Limited</div>
-          <div style="font-size:12px;color:#555;margin-top:4px;font-style:italic">Reach Your Peak</div>
-          <div style="font-size:12px;color:#555;margin-top:8px;line-height:1.6">
-            First Floor, Building C, 2-8 Manukau Road<br>
-            Epsom, Auckland<br>
-            GST# 143-255-948
+          <div style="font-size:18px;font-weight:700">Peak Education Limited</div>
+          <div style="font-size:11.5px;font-style:italic;margin-top:2px">Reach Your Peak</div>
+          <div style="font-size:11.5px;margin-top:10px;line-height:1.7">
+            First Floor, Building C, 2-8 Manukau Road<br>Epsom, Auckland
           </div>
+          <div style="font-size:11.5px;margin-top:6px">DATE: ${today}</div>
+          <div style="font-size:11.5px">INVOICE # ${inv.num}</div>
+          <div style="font-size:11.5px;margin-top:4px">GST# 143-255-948</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:26px;font-weight:700;letter-spacing:1px;color:#7f1d1d">INVOICE</div>
-          <div style="margin-top:10px;font-size:12px;line-height:1.8">
-            <div><strong>DATE:</strong> ${today}</div>
-            <div><strong>INVOICE #</strong> ${inv.num}</div>
-          </div>
+        <div>
+          <div style="font-size:30px;font-weight:900;letter-spacing:2px;color:#000;border:3px solid #000;padding:6px 16px;display:inline-block">INVOICE</div>
         </div>
       </div>
 
-      <!-- Bill To -->
-      <div style="margin-bottom:24px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#888;margin-bottom:6px">Bill To:</div>
-        <div style="font-size:14px;font-weight:600">${sName}</div>
-        ${s&&s.pname?`<div style="font-size:12px;color:#555">${s.pname}</div>`:''}
-        ${s&&(s.pemail||s.email)?`<div style="font-size:12px;color:#555">${s.pemail||s.email}</div>`:''}
+      <div style="margin-bottom:12px;font-size:12px"><strong>FOR:</strong> ${inv.desc}</div>
+
+      <div style="margin-bottom:16px;font-size:12px">
+        <strong>Bill To:</strong><br>
+        <span style="margin-left:4px">${sName}</span>
       </div>
 
-      <!-- For (course) -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#888;margin-bottom:4px">For:</div>
-        <div style="font-size:13px">${inv.desc}</div>
-      </div>
-
-      <!-- Table -->
-      <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:0">
         <thead>
-          <tr style="background:#1a1a1a;color:#fff">
-            <th style="padding:10px 14px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.5px">DESCRIPTION</th>
-            <th style="padding:10px 14px;text-align:right;font-size:12px;font-weight:600;letter-spacing:.5px">GST AMOUNT</th>
-            <th style="padding:10px 14px;text-align:right;font-size:12px;font-weight:600;letter-spacing:.5px">AMOUNT</th>
+          <tr style="background:#000;color:#fff">
+            <th style="padding:9px 12px;text-align:left;font-size:12px;font-weight:600">DESCRIPTION</th>
+            <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600;white-space:nowrap">GST AMOUNT</th>
+            <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600">AMOUNT</th>
           </tr>
         </thead>
         <tbody>
-          <tr style="border-bottom:1px solid #e0e0e0">
-            <td style="padding:12px 14px;font-size:13px">${inv.desc}</td>
-            <td style="padding:12px 14px;text-align:right;font-size:13px">$ ${gst.toFixed(2)}</td>
-            <td style="padding:12px 14px;text-align:right;font-size:13px">$ ${subtotal.toFixed(2)}</td>
+          <tr>
+            <td style="padding:14px 12px;font-size:12.5px;border-bottom:1px solid #bbb">${inv.desc}</td>
+            <td style="padding:14px 12px;text-align:right;font-size:12.5px;border-bottom:1px solid #bbb">$ ${gst.toFixed(2)}</td>
+            <td style="padding:14px 12px;text-align:right;font-size:12.5px;border-bottom:1px solid #bbb">$ ${subtotal.toFixed(2)}</td>
           </tr>
           <tr>
-            <td colspan="3" style="padding:8px 14px;font-size:11px;color:#666;font-style:italic">
+            <td colspan="3" style="padding:8px 12px;font-size:11px;color:#333;font-style:italic">
               * Please note that no refunds will be issued once the course has commenced.
             </td>
           </tr>
         </tbody>
       </table>
 
-      <!-- Totals -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:28px">
-        <div style="width:260px">
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e0e0e0;font-size:13px">
-            <span>Subtotal</span><span>$${subtotal.toFixed(2)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e0e0e0;font-size:13px">
-            <span>GST</span><span>$${gst.toFixed(2)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:15px;font-weight:700;border-top:2px solid #1a1a1a;margin-top:2px">
-            <span>TOTAL</span><span>$${amount.toFixed(2)}</span>
-          </div>
-        </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;margin-bottom:24px">
+        <table style="border-collapse:collapse;min-width:240px">
+          <tr>
+            <td style="padding:4px 14px 4px 0;font-size:12.5px;border-top:1px solid #bbb">Subtotal</td>
+            <td style="padding:4px 0;font-size:12.5px;text-align:right;border-top:1px solid #bbb;min-width:80px">$${subtotal.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 14px 4px 0;font-size:12.5px;border-top:1px solid #bbb">GST</td>
+            <td style="padding:4px 0;font-size:12.5px;text-align:right;border-top:1px solid #bbb">$${gst.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 14px 4px 0;font-size:14px;font-weight:700;border-top:2px solid #000">TOTAL</td>
+            <td style="padding:6px 0 4px 0;font-size:14px;font-weight:700;text-align:right;border-top:2px solid #000">$${amount.toFixed(2)}</td>
+          </tr>
+        </table>
       </div>
 
-      <!-- Payment info -->
-      <div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:14px 16px;font-size:12px;line-height:1.8;color:#444">
-        <div style="font-weight:600;margin-bottom:4px">Payment Instructions</div>
-        Please use invoice number <strong>${inv.num}</strong> and your name as reference.<br>
-        Payment via direct credit can be made to:<br>
-        <strong>Peak Education Limited, ANZ 01-0194-0717789-00</strong>
+      <div style="font-size:12px;line-height:1.9">
+        Please use invoice number and your name as reference<br>
+        Payment via direct credit can be made to : Peak Education Limited, ANZ 01-0194-0717789-00
       </div>
 
-      <!-- Footer -->
-      <div style="text-align:center;margin-top:28px;padding-top:14px;border-top:1px solid #e0e0e0;font-size:12px;color:#888">
+      <div style="margin-top:16px;font-size:12px;font-weight:500">
         Thank you for your payment.
       </div>
 
@@ -2160,13 +2146,8 @@ function printInvoice(id){
   document.body.appendChild(div);
   div.style.display='block';
   window.print();
-  // Clean up after print dialog closes
-  setTimeout(()=>div.remove(), 1000);
+  setTimeout(()=>div.remove(),1000);
 }
-
-// ═══════════════════════════════════════════════
-// EXPORT
-// ═══════════════════════════════════════════════
 function exportData(){
   const data={students:DB.g('students'),teachers:DB.g('teachers'),courses:DB.g('courses'),enrollments:DB.g('enrollments'),invoices:DB.g('invoices'),trials:DB.g('trials'),terms:DB.g('terms'),leads:DB.g('leads'),exported:new Date().toISOString()};
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='peak-edu-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Exported ✓');

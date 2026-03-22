@@ -117,6 +117,7 @@ window._doSignOut = async () => {
 };
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --bg:#fdf8f0;--surf:#fffcf7;--surf2:#f5ede0;--surf3:#ece0cc;
@@ -1179,7 +1180,7 @@ function renderProfInvoices(){
       <td><div style="display:flex;gap:4px">
         ${inv.status!=='Paid'?`<button class="btn btn-ok btn-xs" onclick="markPaid('${inv.id}')">✓ Paid</button>`:''}
         <button class="btn btn-blue btn-xs" onclick="editInvoice('${inv.id}')">Edit</button>
-        <button class="btn" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-size:11px;padding:3px 8px;border-radius:5px" onclick="printInvoice('${inv.id}')">🖨 Print</button>
+        <button class="btn" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-size:11px;padding:3px 8px;border-radius:5px" onclick="printInvoice('${inv.id}')">📷 Save PNG</button>
         <button class="btn btn-red btn-xs" onclick="delInvoice('${inv.id}')">Del</button>
       </div></td>
     </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx3)">No invoices yet</td></tr>'}
@@ -1526,7 +1527,7 @@ function renderInvoices(mode){
     <td style="font-size:12px;max-width:220px">${inv.desc}</td>
     <td style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13.5px">${fmt$(inv.amount)}</td>
     <td>${fmtD(inv.due)}</td><td>${sBadge(inv.status)}</td>
-    <td><div style="display:flex;gap:4px">${inv.status!=='Paid'?`<button class="btn btn-ok btn-xs" onclick="markPaid('${inv.id}')">✓ Paid</button>`:''}<button class="btn btn-blue btn-xs" onclick="editInvoice('${inv.id}')">Edit</button><button class="btn" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-size:11px;padding:3px 8px;border-radius:5px" onclick="printInvoice('${inv.id}')">🖨 Print</button><button class="btn btn-red btn-xs" onclick="delInvoice('${inv.id}')">Del</button></div></td>
+    <td><div style="display:flex;gap:4px">${inv.status!=='Paid'?`<button class="btn btn-ok btn-xs" onclick="markPaid('${inv.id}')">✓ Paid</button>`:''}<button class="btn btn-blue btn-xs" onclick="editInvoice('${inv.id}')">Edit</button><button class="btn" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-size:11px;padding:3px 8px;border-radius:5px" onclick="printInvoice('${inv.id}')">📷 Save PNG</button><button class="btn btn-red btn-xs" onclick="delInvoice('${inv.id}')">Del</button></div></td>
   </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tx3)">No invoices found</td></tr>';
 }
 function renderFinSummary(){
@@ -2174,10 +2175,34 @@ function printInvoice(id){
 
     </div>`;
 
+  // Render off-screen
+  div.style.cssText='position:fixed;top:-9999px;left:-9999px;background:#fff;width:740px;';
   document.body.appendChild(div);
-  div.style.display='block';
-  window.print();
-  setTimeout(()=>div.remove(),1000);
+
+  toast('Generating image…');
+  setTimeout(async ()=>{
+    try {
+      const canvas = await html2canvas(div, {
+        scale: 2,           // 2x for high resolution
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: 740,
+        windowWidth: 740
+      });
+      // Download as PNG
+      const link = document.createElement('a');
+      const sn = (s ? (s.first+'_'+s.last).replace(/\s+/g,'_') : 'invoice');
+      link.download = inv.num + '_' + sn + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast('Invoice saved as PNG ✓');
+    } catch(e) {
+      console.error(e);
+      toast('Image generation failed');
+    } finally {
+      div.remove();
+    }
+  }, 300);
 }
 function exportData(){
   const data={students:DB.g('students'),teachers:DB.g('teachers'),courses:DB.g('courses'),enrollments:DB.g('enrollments'),invoices:DB.g('invoices'),trials:DB.g('trials'),terms:DB.g('terms'),leads:DB.g('leads'),exported:new Date().toISOString()};

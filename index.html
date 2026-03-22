@@ -2062,83 +2062,114 @@ function printInvoice(id){
   const gst=parseFloat((amount/1.15*0.15).toFixed(2));
   const subtotal=parseFloat((amount-gst).toFixed(2));
 
+  // Palette: academic blue + dark navy + white + grey
+  const NAVY  = '#0f2d5e';   // dark navy — header bg, borders, totals
+  const BLUE  = '#1e4fa3';   // medium academic blue — accents, subheader
+  const LBLUE = '#dbeafe';   // light blue — alternating rows, info box bg
+  const WHITE = '#ffffff';
+  const LGRAY = '#f1f5f9';   // very light grey — subtle bg
+  const GRAY  = '#94a3b8';   // mid grey — secondary text, light borders
+  const DGRAY = '#334155';   // dark grey — body text
+  const BLACK = '#0f172a';   // near-black — headings, totals
+
   document.getElementById('print-invoice-area')?.remove();
   const div=document.createElement('div');
   div.id='print-invoice-area';
-  div.style.cssText='display:none;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;background:#fff;';
+  div.style.cssText='display:none;font-family:Georgia,serif;background:#fff;';
   div.innerHTML=`
-    <style>*{color:#1a1a1a!important;text-decoration:none!important}</style>
-    <div style="max-width:700px;margin:0 auto;padding:10px 0">
+    <div style="max-width:700px;margin:0 auto;padding:8px 0;color:${DGRAY}">
 
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+      <!-- TOP HEADER BAND -->
+      <div style="background:${NAVY};color:${WHITE};padding:22px 28px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
         <div>
-          <div style="font-size:18px;font-weight:700">Peak Education Limited</div>
-          <div style="font-size:11.5px;font-style:italic;margin-top:2px">Reach Your Peak</div>
-          <div style="font-size:11.5px;margin-top:10px;line-height:1.7">
-            First Floor, Building C, 2-8 Manukau Road<br>Epsom, Auckland
-          </div>
-          <div style="font-size:11.5px;margin-top:6px">DATE: ${today}</div>
-          <div style="font-size:11.5px">INVOICE # ${inv.num}</div>
-          <div style="font-size:11.5px;margin-top:4px">GST# 143-255-948</div>
+          <div style="font-size:20px;font-weight:700;letter-spacing:-.3px;color:${WHITE}">Peak Education Limited</div>
+          <div style="font-size:11px;color:#93c5fd;margin-top:3px;font-style:italic;letter-spacing:.3px">Reach Your Peak</div>
         </div>
-        <div>
-          <div style="font-size:30px;font-weight:900;letter-spacing:2px;color:#000;border:3px solid #000;padding:6px 16px;display:inline-block">INVOICE</div>
+        <div style="text-align:right">
+          <div style="font-size:32px;font-weight:900;letter-spacing:3px;color:${WHITE};opacity:.95">INVOICE</div>
+          <div style="font-size:11px;color:#93c5fd;margin-top:4px;letter-spacing:.5px">${inv.num}</div>
         </div>
       </div>
 
-      <div style="margin-bottom:12px;font-size:12px"><strong>FOR:</strong> ${inv.desc}</div>
+      <!-- BLUE ACCENT STRIP -->
+      <div style="background:${BLUE};height:4px;margin-bottom:0"></div>
 
-      <div style="margin-bottom:16px;font-size:12px">
-        <strong>Bill To:</strong><br>
-        <span style="margin-left:4px">${sName}</span>
+      <!-- META ROW -->
+      <div style="background:${LGRAY};border:1px solid #e2e8f0;border-top:none;padding:12px 28px;display:flex;justify-content:space-between;margin-bottom:24px">
+        <div style="font-size:11.5px;color:${DGRAY};line-height:1.8">
+          First Floor, Building C, 2-8 Manukau Road, Epsom, Auckland<br>
+          GST# 143-255-948
+        </div>
+        <div style="font-size:11.5px;color:${DGRAY};text-align:right;line-height:1.8">
+          <div><span style="color:${GRAY}">Date:</span> ${today}</div>
+          <div><span style="color:${GRAY}">Due:</span> ${inv.due?new Date(inv.due).toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}):'-'}</div>
+        </div>
       </div>
 
-      <table style="width:100%;border-collapse:collapse;margin-bottom:0">
+      <!-- BILL TO + FOR -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;padding:0 4px">
+        <div style="background:${LBLUE};border-left:3px solid ${BLUE};border-radius:0 4px 4px 0;padding:12px 16px">
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${BLUE};margin-bottom:6px">Bill To</div>
+          <div style="font-size:14px;font-weight:700;color:${BLACK}">${sName}</div>
+          ${s&&s.pname?`<div style="font-size:12px;color:${DGRAY};margin-top:2px">${s.pname}${s.prel?' ('+s.prel+')':''}</div>`:''}
+          ${s&&(s.pemail||s.email)?`<div style="font-size:11.5px;color:${GRAY};margin-top:2px">${s.pemail||s.email}</div>`:''}
+          ${s&&s.pphone?`<div style="font-size:11.5px;color:${GRAY}">${s.pphone}</div>`:''}
+        </div>
+        <div style="background:${LGRAY};border-left:3px solid ${GRAY};border-radius:0 4px 4px 0;padding:12px 16px">
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${GRAY};margin-bottom:6px">Course</div>
+          <div style="font-size:13px;font-weight:600;color:${BLACK}">${inv.desc}</div>
+          ${inv.sessions?`<div style="font-size:11.5px;color:${GRAY};margin-top:3px">${inv.sessions} session${inv.sessions!==1?'s':''}</div>`:''}
+        </div>
+      </div>
+
+      <!-- INVOICE TABLE -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:6px;font-family:Arial,sans-serif">
         <thead>
-          <tr style="background:#000;color:#fff">
-            <th style="padding:9px 12px;text-align:left;font-size:12px;font-weight:600">DESCRIPTION</th>
-            <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600;white-space:nowrap">GST AMOUNT</th>
-            <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600">AMOUNT</th>
+          <tr style="background:${NAVY};color:${WHITE}">
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.8px">DESCRIPTION</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.8px;white-space:nowrap">GST AMOUNT</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.8px">AMOUNT</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style="padding:14px 12px;font-size:12.5px;border-bottom:1px solid #bbb">${inv.desc}</td>
-            <td style="padding:14px 12px;text-align:right;font-size:12.5px;border-bottom:1px solid #bbb">$ ${gst.toFixed(2)}</td>
-            <td style="padding:14px 12px;text-align:right;font-size:12.5px;border-bottom:1px solid #bbb">$ ${subtotal.toFixed(2)}</td>
+          <tr style="background:${WHITE}">
+            <td style="padding:14px 16px;font-size:13px;color:${DGRAY};border-bottom:1px solid #e2e8f0">${inv.desc}</td>
+            <td style="padding:14px 16px;text-align:right;font-size:13px;color:${DGRAY};border-bottom:1px solid #e2e8f0">$ ${gst.toFixed(2)}</td>
+            <td style="padding:14px 16px;text-align:right;font-size:13px;color:${DGRAY};border-bottom:1px solid #e2e8f0">$ ${subtotal.toFixed(2)}</td>
           </tr>
-          <tr>
-            <td colspan="3" style="padding:8px 12px;font-size:11px;color:#333;font-style:italic">
+          <tr style="background:${LGRAY}">
+            <td colspan="3" style="padding:9px 16px;font-size:10.5px;color:${GRAY};font-style:italic">
               * Please note that no refunds will be issued once the course has commenced.
             </td>
           </tr>
         </tbody>
       </table>
 
-      <div style="display:flex;justify-content:flex-end;margin-top:6px;margin-bottom:24px">
-        <table style="border-collapse:collapse;min-width:240px">
-          <tr>
-            <td style="padding:4px 14px 4px 0;font-size:12.5px;border-top:1px solid #bbb">Subtotal</td>
-            <td style="padding:4px 0;font-size:12.5px;text-align:right;border-top:1px solid #bbb;min-width:80px">$${subtotal.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td style="padding:4px 14px 4px 0;font-size:12.5px;border-top:1px solid #bbb">GST</td>
-            <td style="padding:4px 0;font-size:12.5px;text-align:right;border-top:1px solid #bbb">$${gst.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 14px 4px 0;font-size:14px;font-weight:700;border-top:2px solid #000">TOTAL</td>
-            <td style="padding:6px 0 4px 0;font-size:14px;font-weight:700;text-align:right;border-top:2px solid #000">$${amount.toFixed(2)}</td>
-          </tr>
-        </table>
+      <!-- TOTALS -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:26px;padding:0 4px">
+        <div style="min-width:260px;font-family:Arial,sans-serif">
+          <div style="display:flex;justify-content:space-between;padding:7px 16px;font-size:12.5px;color:${DGRAY};border-bottom:1px solid #e2e8f0">
+            <span>Subtotal</span><span>$${subtotal.toFixed(2)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:7px 16px;font-size:12.5px;color:${DGRAY};border-bottom:1px solid #e2e8f0">
+            <span>GST (15%)</span><span>$${gst.toFixed(2)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 16px;font-size:15px;font-weight:700;color:${WHITE};background:${NAVY};border-radius:0 0 4px 4px">
+            <span>TOTAL</span><span>$${amount.toFixed(2)}</span>
+          </div>
+        </div>
       </div>
 
-      <div style="font-size:12px;line-height:1.9">
-        Please use invoice number and your name as reference<br>
-        Payment via direct credit can be made to : Peak Education Limited, ANZ 01-0194-0717789-00
+      <!-- PAYMENT INFO -->
+      <div style="background:${LBLUE};border:1px solid #bfdbfe;border-left:4px solid ${BLUE};border-radius:0 4px 4px 0;padding:14px 18px;font-size:12px;line-height:1.8;color:${DGRAY};margin-bottom:20px">
+        <div style="font-weight:700;color:${NAVY};margin-bottom:4px;font-size:12.5px">Payment Instructions</div>
+        Please use invoice number <strong style="color:${NAVY}">${inv.num}</strong> and your name as reference.<br>
+        Payment via direct credit: <strong style="color:${NAVY}">Peak Education Limited, ANZ 01-0194-0717789-00</strong>
       </div>
 
-      <div style="margin-top:16px;font-size:12px;font-weight:500">
-        Thank you for your payment.
+      <!-- FOOTER -->
+      <div style="text-align:center;padding-top:14px;border-top:2px solid ${LBLUE};font-size:12px;color:${GRAY};letter-spacing:.3px">
+        Thank you for your payment. &nbsp;·&nbsp; info@peakeducation.co.nz &nbsp;·&nbsp; +64 21 388 818
       </div>
 
     </div>`;
